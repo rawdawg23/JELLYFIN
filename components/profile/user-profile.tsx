@@ -8,26 +8,24 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   User,
   Mail,
   Calendar,
-  Crown,
-  Shield,
+  Clock,
+  Star,
   Settings,
-  Bell,
-  Lock,
-  Activity,
-  Edit3,
+  Shield,
+  Crown,
+  Edit,
   Save,
   X,
-  CheckCircle,
-  Clock,
-  Zap,
+  Camera,
+  Activity,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { formatUKDateTime, getRelativeTime } from "@/lib/date-utils"
-import { JellyfinQuickConnectSection } from "./jellyfin-quick-connect-section"
 
 export function UserProfile() {
   const { user, updateProfile } = useAuth()
@@ -37,24 +35,14 @@ export function UserProfile() {
     email: user?.email || "",
   })
 
-  if (!user) {
-    return (
-      <Card className="ios-card border-0">
-        <CardContent className="text-center py-12">
-          <User className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Sign In Required</h3>
-          <p className="text-muted-foreground">Please sign in to view your profile.</p>
-        </CardContent>
-      </Card>
-    )
-  }
+  if (!user) return null
 
-  const handleSaveProfile = () => {
+  const handleSave = () => {
     updateProfile(editForm)
     setIsEditing(false)
   }
 
-  const handleCancelEdit = () => {
+  const handleCancel = () => {
     setEditForm({
       username: user.username,
       email: user.email,
@@ -62,112 +50,69 @@ export function UserProfile() {
     setIsEditing(false)
   }
 
-  const getRoleBadge = (role: string) => {
+  const getRoleIcon = (role: string) => {
     switch (role) {
       case "admin":
-        return (
-          <Badge className="ios-badge bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0">
-            <Crown className="h-3 w-3 mr-1" />
-            Admin
-          </Badge>
-        )
+        return <Crown className="h-4 w-4 text-yellow-500" />
       case "moderator":
-        return (
-          <Badge className="ios-badge bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-0">
-            <Shield className="h-3 w-3 mr-1" />
-            Moderator
-          </Badge>
-        )
+        return <Shield className="h-4 w-4 text-blue-500" />
       default:
-        return (
-          <Badge className="ios-badge bg-gradient-to-r from-purple-500 to-indigo-600 text-white border-0">
-            <User className="h-3 w-3 mr-1" />
-            User
-          </Badge>
-        )
+        return <User className="h-4 w-4 text-purple-500" />
     }
   }
 
-  const getPlanBadge = (plan: string) => {
-    switch (plan) {
-      case "admin":
-        return (
-          <Badge className="ios-badge bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0">
-            <Crown className="h-3 w-3 mr-1" />
-            Admin Access
-          </Badge>
-        )
-      case "premium":
-        return (
-          <Badge className="ios-badge bg-gradient-to-r from-purple-500 to-indigo-600 text-white border-0">
-            <Crown className="h-3 w-3 mr-1" />
-            Premium
-          </Badge>
-        )
-      case "family":
-        return (
-          <Badge className="ios-badge bg-gradient-to-r from-green-500 to-teal-600 text-white border-0">
-            <User className="h-3 w-3 mr-1" />
-            Family
-          </Badge>
-        )
-      default:
-        return <Badge className="ios-badge bg-gradient-to-r from-gray-500 to-gray-600 text-white border-0">Basic</Badge>
+  const getRoleBadge = (role: string) => {
+    const colors = {
+      admin: "bg-gradient-to-r from-yellow-500 to-orange-500",
+      moderator: "bg-gradient-to-r from-blue-500 to-indigo-500",
+      user: "bg-gradient-to-r from-purple-500 to-indigo-500",
     }
+    return colors[role as keyof typeof colors] || colors.user
   }
-
-  // Mock activity data
-  const recentActivity = [
-    {
-      id: "1",
-      type: "login",
-      description: "Signed in to account",
-      timestamp: new Date(Date.now() - 3600000).toISOString(),
-      icon: <User className="h-4 w-4" />,
-    },
-    {
-      id: "2",
-      type: "jellyfin_connect",
-      description: "Connected to Jellyfin server",
-      timestamp: new Date(Date.now() - 7200000).toISOString(),
-      icon: <Zap className="h-4 w-4" />,
-    },
-    {
-      id: "3",
-      type: "profile_update",
-      description: "Updated profile information",
-      timestamp: new Date(Date.now() - 86400000).toISOString(),
-      icon: <Edit3 className="h-4 w-4" />,
-    },
-    {
-      id: "4",
-      type: "subscription",
-      description: "Subscription renewed",
-      timestamp: new Date(Date.now() - 172800000).toISOString(),
-      icon: <Crown className="h-4 w-4" />,
-    },
-  ]
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-            User Profile
-          </h2>
-          <p className="text-lg text-muted-foreground mt-2">Manage your account settings and preferences</p>
-        </div>
-      </div>
+      <Card className="ios-card border-0">
+        <CardHeader className="text-center">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="relative">
+              <Avatar className="h-24 w-24 border-4 border-purple-200">
+                <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.username} />
+                <AvatarFallback className="text-2xl bg-gradient-to-br from-purple-400 to-indigo-500 text-white">
+                  {user.username.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <Button
+                size="sm"
+                className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full ios-button text-white border-0 p-0"
+              >
+                <Camera className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <h2 className="text-2xl font-bold text-foreground">{user.username}</h2>
+                <Badge className={`ios-badge text-white border-0 ${getRoleBadge(user.role)}`}>
+                  {getRoleIcon(user.role)}
+                  <span className="ml-1 capitalize">{user.role}</span>
+                </Badge>
+              </div>
+              {user.plan && (
+                <Badge className="ios-badge bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0">
+                  <Star className="h-3 w-3 mr-1" />
+                  {user.plan.charAt(0).toUpperCase() + user.plan.slice(1)} Plan
+                </Badge>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="ios-tabs grid w-full grid-cols-4">
+        <TabsList className="ios-tabs grid w-full grid-cols-3">
           <TabsTrigger value="profile">
             <User className="h-4 w-4 mr-2" />
             Profile
-          </TabsTrigger>
-          <TabsTrigger value="jellyfin">
-            <Zap className="h-4 w-4 mr-2" />
-            Jellyfin
           </TabsTrigger>
           <TabsTrigger value="activity">
             <Activity className="h-4 w-4 mr-2" />
@@ -181,143 +126,135 @@ export function UserProfile() {
 
         <TabsContent value="profile" className="space-y-6">
           <Card className="ios-card border-0">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-16 w-16">
-                    <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.username} />
-                    <AvatarFallback className="text-lg bg-gradient-to-br from-purple-400 to-indigo-500 text-white">
-                      {user.username.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-xl font-semibold">{user.username}</h3>
-                      {getRoleBadge(user.role)}
-                    </div>
-                    <p className="text-muted-foreground">{user.email}</p>
-                    <div className="flex items-center gap-2">{getPlanBadge(user.plan || "basic")}</div>
-                  </div>
-                </div>
-                <Button
-                  onClick={() => setIsEditing(!isEditing)}
-                  variant="outline"
-                  className="ios-button bg-transparent"
-                >
-                  {isEditing ? <X className="h-4 w-4 mr-2" /> : <Edit3 className="h-4 w-4 mr-2" />}
-                  {isEditing ? "Cancel" : "Edit"}
-                </Button>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Profile Information</CardTitle>
+                <CardDescription>Manage your account details</CardDescription>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {isEditing ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="username">Username</Label>
-                      <Input
-                        id="username"
-                        value={editForm.username}
-                        onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
-                        className="ios-search border-0"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={editForm.email}
-                        onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                        className="ios-search border-0"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={handleSaveProfile} className="ios-button text-white border-0">
-                      <Save className="h-4 w-4 mr-2" />
-                      Save Changes
-                    </Button>
-                    <Button onClick={handleCancelEdit} variant="outline" className="ios-button bg-transparent">
-                      <X className="h-4 w-4 mr-2" />
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
+              {!isEditing ? (
+                <Button onClick={() => setIsEditing(true)} variant="outline" size="sm" className="ios-button">
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3 p-4 bg-purple-50 rounded-xl">
-                      <div className="p-2 bg-purple-500 rounded-lg">
-                        <User className="h-4 w-4 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Username</p>
-                        <p className="font-medium">{user.username}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-4 bg-purple-50 rounded-xl">
-                      <div className="p-2 bg-purple-500 rounded-lg">
-                        <Mail className="h-4 w-4 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Email</p>
-                        <p className="font-medium">{user.email}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3 p-4 bg-purple-50 rounded-xl">
-                      <div className="p-2 bg-purple-500 rounded-lg">
-                        <Calendar className="h-4 w-4 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Member Since</p>
-                        <p className="font-medium">{formatUKDateTime(user.joinDate)}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-4 bg-purple-50 rounded-xl">
-                      <div className="p-2 bg-purple-500 rounded-lg">
-                        <Clock className="h-4 w-4 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Last Active</p>
-                        <p className="font-medium">{getRelativeTime(user.lastActive)}</p>
-                      </div>
-                    </div>
-                  </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleSave} size="sm" className="ios-button text-white border-0">
+                    <Save className="h-4 w-4 mr-2" />
+                    Save
+                  </Button>
+                  <Button onClick={handleCancel} variant="outline" size="sm">
+                    <X className="h-4 w-4 mr-2" />
+                    Cancel
+                  </Button>
                 </div>
               )}
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  {isEditing ? (
+                    <Input
+                      id="username"
+                      value={editForm.username}
+                      onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+                      className="ios-search border-0"
+                    />
+                  ) : (
+                    <div className="flex items-center gap-2 p-3 bg-purple-50 rounded-xl">
+                      <User className="h-4 w-4 text-purple-500" />
+                      <span className="font-medium">{user.username}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  {isEditing ? (
+                    <Input
+                      id="email"
+                      type="email"
+                      value={editForm.email}
+                      onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                      className="ios-search border-0"
+                    />
+                  ) : (
+                    <div className="flex items-center gap-2 p-3 bg-purple-50 rounded-xl">
+                      <Mail className="h-4 w-4 text-purple-500" />
+                      <span className="font-medium">{user.email}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Member Since</Label>
+                  <div className="flex items-center gap-2 p-3 bg-purple-50 rounded-xl">
+                    <Calendar className="h-4 w-4 text-purple-500" />
+                    <span className="font-medium">{formatUKDateTime(user.joinDate)}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Last Active</Label>
+                  <div className="flex items-center gap-2 p-3 bg-purple-50 rounded-xl">
+                    <Clock className="h-4 w-4 text-purple-500" />
+                    <span className="font-medium">{getRelativeTime(user.lastActive)}</span>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
-        </TabsContent>
 
-        <TabsContent value="jellyfin" className="space-y-6">
-          <JellyfinQuickConnectSection />
+          <Card className="ios-card border-0">
+            <CardHeader>
+              <CardTitle>Account Statistics</CardTitle>
+              <CardDescription>Your activity overview</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center p-4 bg-purple-50 rounded-xl">
+                  <div className="text-2xl font-bold text-purple-600">12</div>
+                  <div className="text-sm text-muted-foreground">Forum Posts</div>
+                </div>
+                <div className="text-center p-4 bg-indigo-50 rounded-xl">
+                  <div className="text-2xl font-bold text-indigo-600">3</div>
+                  <div className="text-sm text-muted-foreground">Support Tickets</div>
+                </div>
+                <div className="text-center p-4 bg-green-50 rounded-xl">
+                  <div className="text-2xl font-bold text-green-600">8</div>
+                  <div className="text-sm text-muted-foreground">Messages Sent</div>
+                </div>
+                <div className="text-center p-4 bg-orange-50 rounded-xl">
+                  <div className="text-2xl font-bold text-orange-600">45</div>
+                  <div className="text-sm text-muted-foreground">Days Active</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="activity" className="space-y-6">
           <Card className="ios-card border-0">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5 text-purple-500" />
-                Recent Activity
-              </CardTitle>
-              <CardDescription>Your recent account activity and actions</CardDescription>
+              <CardTitle>Recent Activity</CardTitle>
+              <CardDescription>Your latest actions and interactions</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {recentActivity.map((activity) => (
-                  <div key={activity.id} className="flex items-center gap-3 p-3 bg-purple-50 rounded-xl">
-                    <div className="p-2 bg-purple-500 rounded-lg text-white">{activity.icon}</div>
+                {[
+                  { action: "Posted in General Discussion", time: "2 hours ago", type: "forum" },
+                  { action: "Created support ticket #1234", time: "1 day ago", type: "ticket" },
+                  { action: "Sent message to @admin", time: "2 days ago", type: "message" },
+                  { action: "Updated profile information", time: "3 days ago", type: "profile" },
+                  { action: "Joined the community", time: "1 week ago", type: "system" },
+                ].map((activity, index) => (
+                  <div key={index} className="flex items-center gap-3 p-3 bg-purple-50 rounded-xl">
+                    <div className="w-2 h-2 bg-gradient-to-r from-purple-400 to-indigo-500 rounded-full" />
                     <div className="flex-1">
-                      <p className="font-medium text-sm">{activity.description}</p>
-                      <p className="text-xs text-muted-foreground">{getRelativeTime(activity.timestamp)}</p>
+                      <p className="font-medium text-foreground">{activity.action}</p>
+                      <p className="text-sm text-muted-foreground">{activity.time}</p>
                     </div>
-                    <Badge className="ios-badge bg-green-100 text-green-700 border-0">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Success
-                    </Badge>
+                    <Badge className="ios-badge text-xs bg-purple-100 text-purple-700 border-0">{activity.type}</Badge>
                   </div>
                 ))}
               </div>
@@ -326,57 +263,20 @@ export function UserProfile() {
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="ios-card border-0">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bell className="h-5 w-5 text-purple-500" />
-                  Notifications
-                </CardTitle>
-                <CardDescription>Manage your notification preferences</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Email Notifications</p>
-                    <p className="text-sm text-muted-foreground">Receive updates via email</p>
-                  </div>
-                  <Button variant="outline" size="sm" className="ios-button bg-transparent">
-                    Enable
-                  </Button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Push Notifications</p>
-                    <p className="text-sm text-muted-foreground">Browser push notifications</p>
-                  </div>
-                  <Button variant="outline" size="sm" className="ios-button bg-transparent">
-                    Enable
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="ios-card border-0">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Lock className="h-5 w-5 text-purple-500" />
-                  Security
-                </CardTitle>
-                <CardDescription>Manage your account security</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Button variant="outline" className="w-full ios-button bg-transparent">
-                  <Lock className="h-4 w-4 mr-2" />
-                  Change Password
-                </Button>
-                <Button variant="outline" className="w-full ios-button bg-transparent">
-                  <Shield className="h-4 w-4 mr-2" />
-                  Two-Factor Authentication
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+          <Card className="ios-card border-0">
+            <CardHeader>
+              <CardTitle>Account Settings</CardTitle>
+              <CardDescription>Manage your preferences and security</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Alert>
+                <Settings className="h-4 w-4" />
+                <AlertDescription>
+                  Settings panel coming soon! You'll be able to manage notifications, privacy, and security settings.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

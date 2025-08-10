@@ -8,33 +8,26 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CheckCircle, Copy, User, Key, Mail, Download, ExternalLink } from "lucide-react"
 
-interface PurchaseData {
-  planType: string
-  price: number
+interface SubscriptionSuccessModalProps {
+  isOpen: boolean
+  onClose: () => void
   credentials: {
     username: string
     password: string
     email?: string
   }
-  userId: string
+  planName: string
+  serverUrl: string
 }
 
-interface SubscriptionSuccessModalProps {
-  isOpen: boolean
-  onClose: () => void
-  purchaseData: PurchaseData | null
-}
-
-export function SubscriptionSuccessModal({ isOpen, onClose, purchaseData }: SubscriptionSuccessModalProps) {
+export function SubscriptionSuccessModal({
+  isOpen,
+  onClose,
+  credentials,
+  planName,
+  serverUrl,
+}: SubscriptionSuccessModalProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null)
-
-  // Return early if no purchase data
-  if (!purchaseData || !purchaseData.credentials) {
-    return null
-  }
-
-  const { credentials, planType } = purchaseData
-  const serverUrl = "https://xqi1eda.freshticks.xyz"
 
   const copyToClipboard = async (text: string, field: string) => {
     try {
@@ -51,7 +44,7 @@ export function SubscriptionSuccessModal({ isOpen, onClose, purchaseData }: Subs
 OG JELLYFIN - Account Details
 =============================
 
-Plan: ${planType}
+Plan: ${planName}
 Server: ${serverUrl}
 
 Username: ${credentials.username}
@@ -85,7 +78,7 @@ Welcome to OG JELLYFIN!
             Welcome to OG JELLYFIN!
           </DialogTitle>
           <DialogDescription>
-            Your {planType} subscription is now active. Here are your login credentials:
+            Your {planName} subscription is now active. Here are your login credentials:
           </DialogDescription>
         </DialogHeader>
 
@@ -173,7 +166,7 @@ Welcome to OG JELLYFIN!
 
           <div className="text-center">
             <Badge variant="outline" className="text-xs">
-              Plan: {planType}
+              Plan: {planName}
             </Badge>
           </div>
         </div>
