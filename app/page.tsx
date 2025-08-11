@@ -51,6 +51,30 @@ function JellyfinStoreContent() {
     loadLibraries()
   }, [])
 
+  // Close mobile menu when clicking outside or on escape
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMobileMenuOpen(false)
+      }
+    }
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (mobileMenuOpen && !target.closest(".mobile-menu") && !target.closest(".mobile-menu-button")) {
+        setMobileMenuOpen(false)
+      }
+    }
+
+    document.addEventListener("keydown", handleEscape)
+    document.addEventListener("click", handleClickOutside)
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape)
+      document.removeEventListener("click", handleClickOutside)
+    }
+  }, [mobileMenuOpen])
+
   const loadLibraries = async () => {
     try {
       const libraryData = await jellyfinAPI.getLibraries()
@@ -116,6 +140,16 @@ function JellyfinStoreContent() {
     setMobileMenuOpen(false)
   }
 
+  const navigationItems = [
+    { id: "libraries", label: "Libraries", icon: Play, shortLabel: "Media" },
+    { id: "plans", label: "Plans", icon: Crown, shortLabel: "Plans" },
+    { id: "profile", label: "Profile", icon: User, shortLabel: "Profile", requiresAuth: true },
+    { id: "tickets", label: "Tickets", icon: TicketIcon, shortLabel: "Help", requiresAuth: true },
+    { id: "messages", label: "Messages", icon: Mail, shortLabel: "Mail", requiresAuth: true },
+    { id: "forum", label: "Forum", icon: MessageSquare, shortLabel: "Forum", requiresAuth: true },
+    { id: "settings", label: "Settings", icon: Settings, shortLabel: "Settings" },
+  ]
+
   const subscriptionPlans = [
     {
       name: "Basic",
@@ -166,9 +200,11 @@ function JellyfinStoreContent() {
       <div className="john-wick-particles"></div>
 
       <div className="main-content">
+        {/* Header */}
         <header className="bg-white/80 backdrop-blur-md border-b border-purple-100 sticky top-0 z-50">
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
+              {/* Logo */}
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl flex items-center justify-center">
                   <Play className="h-6 w-6 text-white" />
@@ -178,6 +214,11 @@ function JellyfinStoreContent() {
                     OG JELLYFIN
                   </h1>
                   <p className="text-xs sm:text-sm text-muted-foreground">Your Premium Media Experience</p>
+                </div>
+                <div className="sm:hidden">
+                  <h1 className="text-lg font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                    OG JELLYFIN
+                  </h1>
                 </div>
               </div>
 
@@ -204,94 +245,155 @@ function JellyfinStoreContent() {
 
               {/* Mobile Menu Button */}
               <div className="lg:hidden flex items-center gap-2">
-                <UKTimeDisplay />
-                <Button variant="ghost" size="sm" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2">
+                <div className="hidden sm:block">
+                  <UKTimeDisplay />
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="mobile-menu-button p-2 hover:bg-purple-100"
+                >
                   {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
                 </Button>
               </div>
             </div>
-
-            {/* Mobile Menu */}
-            {mobileMenuOpen && (
-              <div className="lg:hidden mt-4 p-4 bg-white/90 backdrop-blur-md rounded-xl border border-purple-100">
-                {isAuthenticated ? (
-                  <div className="space-y-3">
-                    <div className="text-center">
-                      <span className="text-sm text-muted-foreground">
-                        Welcome, <span className="font-medium text-purple-600">{user?.username}</span>
-                      </span>
-                    </div>
-                    <Button onClick={logout} variant="outline" size="sm" className="w-full ios-button bg-transparent">
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Sign Out
-                    </Button>
-                  </div>
-                ) : (
-                  <Button onClick={() => setShowLoginModal(true)} className="w-full ios-button text-white border-0">
-                    <LogIn className="h-4 w-4 mr-2" />
-                    Sign In
-                  </Button>
-                )}
-              </div>
-            )}
           </div>
+
+          {/* Mobile Menu Overlay */}
+          {mobileMenuOpen && (
+            <div className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40" style={{ top: "80px" }}>
+              <div className="mobile-menu bg-white/95 backdrop-blur-md border-b border-purple-100 shadow-xl">
+                <div className="container mx-auto px-4 py-6 space-y-6">
+                  {/* Mobile Time Display */}
+                  <div className="sm:hidden flex justify-center">
+                    <UKTimeDisplay />
+                  </div>
+
+                  {/* Mobile Navigation */}
+                  <nav className="space-y-2">
+                    {navigationItems.map((item) => {
+                      const isDisabled = item.requiresAuth && !isAuthenticated
+                      const Icon = item.icon
+
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => handleTabChange(item.id)}
+                          disabled={isDisabled}
+                          className={`w-full flex items-center gap-3 p-4 rounded-xl transition-all duration-200 ${
+                            activeTab === item.id
+                              ? "bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg"
+                              : isDisabled
+                                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                : "bg-purple-50 text-purple-700 hover:bg-purple-100"
+                          }`}
+                        >
+                          <Icon className="h-5 w-5" />
+                          <span className="font-medium">{item.label}</span>
+                          {isDisabled && (
+                            <Badge className="ml-auto bg-gray-300 text-gray-600 text-xs">Sign In Required</Badge>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </nav>
+
+                  {/* Mobile Auth Section */}
+                  <div className="border-t border-purple-200 pt-6">
+                    {isAuthenticated ? (
+                      <div className="space-y-4">
+                        <div className="text-center p-4 bg-purple-50 rounded-xl">
+                          <div className="flex items-center justify-center gap-2 mb-2">
+                            <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center">
+                              <User className="h-4 w-4 text-white" />
+                            </div>
+                            <span className="font-medium text-purple-700">{user?.username}</span>
+                          </div>
+                          <p className="text-sm text-purple-600">{user?.email}</p>
+                        </div>
+                        <Button
+                          onClick={() => {
+                            logout()
+                            setMobileMenuOpen(false)
+                          }}
+                          variant="outline"
+                          className="w-full ios-button bg-transparent border-red-200 text-red-600 hover:bg-red-50"
+                        >
+                          <LogOut className="h-4 w-4 mr-2" />
+                          Sign Out
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        onClick={() => {
+                          setShowLoginModal(true)
+                          setMobileMenuOpen(false)
+                        }}
+                        className="w-full ios-button text-white border-0"
+                      >
+                        <LogIn className="h-4 w-4 mr-2" />
+                        Sign In to Access All Features
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </header>
 
         <main className="container mx-auto px-4 py-4 sm:py-8">
           <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6 sm:space-y-8">
-            <TabsList className="ios-tabs grid w-full grid-cols-7 overflow-x-auto">
-              <TabsTrigger value="libraries" className="flex-shrink-0">
-                <Play className="h-4 w-4 mr-1 sm:mr-2" />
-                <span className="hidden sm:inline">Libraries</span>
-                <span className="sm:hidden">Media</span>
-              </TabsTrigger>
-              <TabsTrigger value="plans" className="flex-shrink-0">
-                <Crown className="h-4 w-4 mr-1 sm:mr-2" />
-                <span className="hidden sm:inline">Plans</span>
-                <span className="sm:hidden">Plans</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="profile"
-                disabled={!isAuthenticated}
-                className={`flex-shrink-0 ${!isAuthenticated ? "opacity-50" : ""}`}
-              >
-                <User className="h-4 w-4 mr-1 sm:mr-2" />
-                <span className="hidden sm:inline">Profile</span>
-                <span className="sm:hidden">Profile</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="tickets"
-                disabled={!isAuthenticated}
-                className={`flex-shrink-0 ${!isAuthenticated ? "opacity-50" : ""}`}
-              >
-                <TicketIcon className="h-4 w-4 mr-1 sm:mr-2" />
-                <span className="hidden sm:inline">Tickets</span>
-                <span className="sm:hidden">Help</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="messages"
-                disabled={!isAuthenticated}
-                className={`flex-shrink-0 ${!isAuthenticated ? "opacity-50" : ""}`}
-              >
-                <Mail className="h-4 w-4 mr-1 sm:mr-2" />
-                <span className="hidden sm:inline">Messages</span>
-                <span className="sm:hidden">Mail</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="forum"
-                disabled={!isAuthenticated}
-                className={`flex-shrink-0 ${!isAuthenticated ? "opacity-50" : ""}`}
-              >
-                <MessageSquare className="h-4 w-4 mr-1 sm:mr-2" />
-                <span className="hidden sm:inline">Forum</span>
-                <span className="sm:hidden">Forum</span>
-              </TabsTrigger>
-              <TabsTrigger value="settings" className="flex-shrink-0">
-                <Settings className="h-4 w-4 mr-1 sm:mr-2" />
-                <span className="hidden sm:inline">Settings</span>
-                <span className="sm:hidden">Settings</span>
-              </TabsTrigger>
-            </TabsList>
+            {/* Desktop Tab Navigation */}
+            <div className="hidden lg:block">
+              <TabsList className="ios-tabs grid w-full grid-cols-7">
+                {navigationItems.map((item) => {
+                  const Icon = item.icon
+                  const isDisabled = item.requiresAuth && !isAuthenticated
+
+                  return (
+                    <TabsTrigger key={item.id} value={item.id} disabled={isDisabled} className="flex-shrink-0">
+                      <Icon className="h-4 w-4 mr-2" />
+                      {item.label}
+                    </TabsTrigger>
+                  )
+                })}
+              </TabsList>
+            </div>
+
+            {/* Mobile Tab Navigation - Horizontal Scroll */}
+            <div className="lg:hidden">
+              <div className="ios-tabs overflow-x-auto scrollbar-hide">
+                <div className="flex gap-2 p-2 min-w-max">
+                  {navigationItems.map((item) => {
+                    const Icon = item.icon
+                    const isDisabled = item.requiresAuth && !isAuthenticated
+
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => handleTabChange(item.id)}
+                        disabled={isDisabled}
+                        className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+                          activeTab === item.id
+                            ? "bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg"
+                            : isDisabled
+                              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                              : "bg-white/80 text-purple-700 hover:bg-purple-50"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span className="text-sm font-medium whitespace-nowrap">
+                          <span className="hidden sm:inline">{item.label}</span>
+                          <span className="sm:hidden">{item.shortLabel}</span>
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
 
             <TabsContent value="libraries" className="space-y-6 sm:space-y-8">
               <div className="text-center space-y-4">

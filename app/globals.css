@@ -260,6 +260,28 @@
   }
 }
 
+/* Mobile Menu Styles */
+.mobile-menu {
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Mobile Menu Button Hover */
+.mobile-menu-button:hover {
+  background-color: rgba(139, 69, 199, 0.1);
+  transform: scale(1.05);
+}
+
 /* Responsive Design */
 @media (max-width: 640px) {
   .container {
@@ -269,6 +291,17 @@
 
   .main-content {
     padding: 0.5rem;
+  }
+
+  /* Mobile header adjustments */
+  header {
+    padding: 0.75rem 0;
+  }
+
+  /* Mobile menu overlay positioning */
+  .mobile-menu {
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
   }
 }
 
@@ -334,25 +367,30 @@
 }
 
 /* Responsive tabs */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .ios-tabs {
     overflow-x: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    border-radius: 12px;
+    padding: 8px;
   }
 
   .ios-tabs::-webkit-scrollbar {
     display: none;
   }
 
-  .ios-tabs .grid {
-    display: flex;
+  .ios-tabs .flex {
     min-width: max-content;
+    gap: 8px;
   }
 
-  .ios-tabs .grid > * {
+  .ios-tabs .flex > * {
     flex-shrink: 0;
-    min-width: 120px;
+    min-width: 100px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.875rem;
   }
 }
 
@@ -559,5 +597,33 @@ html {
 
   .ios-button {
     padding: 0.75rem 1rem;
+  }
+}
+
+/* Mobile menu specific styles */
+@media (max-width: 1024px) {
+  .mobile-menu nav button {
+    transition: all 0.2s ease-in-out;
+  }
+
+  .mobile-menu nav button:active {
+    transform: scale(0.98);
+  }
+
+  /* Ensure mobile menu doesn't interfere with content */
+  .mobile-menu {
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+  }
+}
+
+/* Prevent body scroll when mobile menu is open */
+body.mobile-menu-open {
+  overflow: hidden;
+}
+
+@media (max-width: 1024px) {
+  body.mobile-menu-open {
+    overflow: hidden;
   }
 }
