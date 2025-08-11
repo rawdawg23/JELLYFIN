@@ -52,4 +52,32 @@ declare module "zustand" {
   }
 }
 
+declare module "react-day-picker" {
+  export * from "react-day-picker/dist/index"
+}
+
+declare module "cmdk" {
+  export * from "cmdk/dist/index"
+}
+
+declare module "vaul" {
+  export * from "vaul/dist/index"
+}
+
+declare module "input-otp" {
+  export * from "input-otp/dist/index"
+}
+
+declare module "react-resizable-panels" {
+  export * from "react-resizable-panels/dist/index"
+}
+
+declare module "sonner" {
+  export * from "sonner/dist/index"
+}
+
+declare module "recharts" {
+  export * from "recharts/es6/index"
+}
+
 export {}
