@@ -7,10 +7,10 @@ const __dirname = path.dirname(__filename);
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
-    ignoreDuringBuilds: false, // Enable ESLint to catch real issues
+    ignoreDuringBuilds: false,
   },
   typescript: {
-    ignoreBuildErrors: false, // Enable TypeScript checking to catch real issues
+    ignoreBuildErrors: false,
   },
   images: {
     remotePatterns: [
@@ -31,6 +31,7 @@ const nextConfig = {
   },
   experimental: {
     esmExternals: 'loose',
+    serverComponentsExternalPackages: ['three', '@react-three/fiber', '@react-three/drei'],
   },
   webpack: (config, { isServer }) => {
     config.resolve.fallback = {
@@ -50,6 +51,8 @@ const nextConfig = {
       buffer: false,
       util: false,
       events: false,
+      child_process: false,
+      worker_threads: false,
     };
 
     // Handle Three.js modules properly
@@ -64,7 +67,7 @@ const nextConfig = {
     };
 
     if (isServer) {
-      config.externals = [...(config.externals || []), 'react', 'react-dom'];
+      config.externals = [...(config.externals || [])];
     }
 
     return config;
@@ -73,6 +76,7 @@ const nextConfig = {
   poweredByHeader: false,
   trailingSlash: false,
   generateEtags: false,
+  swcMinify: true,
 };
 
 export default nextConfig;

@@ -80,4 +80,10 @@ declare module "recharts" {
   export * from "recharts/es6/index"
 }
 
+declare namespace JSX {
+  interface IntrinsicElements {
+    [elemName: string]: any
+  }
+}
+
 export {}
