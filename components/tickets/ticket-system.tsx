@@ -5,8 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Dialog,
@@ -16,188 +18,228 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
+  HelpCircle,
   Plus,
+  Search,
+  Filter,
   MessageSquare,
   Clock,
   CheckCircle,
   XCircle,
-  AlertCircle,
+  AlertTriangle,
   Send,
   Paperclip,
-  Search,
-  Filter,
+  User,
+  Shield,
+  Crown,
+  Settings,
 } from "lucide-react"
-import { useAuth } from "@/lib/auth-context"
 import { formatUKDateTime, getRelativeTime } from "@/lib/date-utils"
+import { useAuth } from "@/lib/auth-context"
 
 interface Ticket {
   id: string
   title: string
   description: string
-  status: "open" | "in-progress" | "resolved" | "closed"
+  category: string
   priority: "low" | "medium" | "high" | "urgent"
-  category: "technical" | "billing" | "general" | "feature-request"
+  status: "open" | "in-progress" | "resolved" | "closed"
   createdAt: string
   updatedAt: string
   userId: string
-  assignedTo?: string
-  messages: TicketMessage[]
-}
-
-interface TicketMessage {
-  id: string
-  content: string
-  userId: string
-  username: string
-  avatar?: string
-  isStaff: boolean
-  createdAt: string
+  userName: string
+  userEmail: string
+  messages: Array<{
+    id: string
+    content: string
+    sender: string
+    isStaff: boolean
+    timestamp: string
+    userId?: string
+  }>
 }
 
 export function TicketSystem() {
   const { user } = useAuth()
+  const isAdmin = user?.role === "admin"
+
   const [tickets, setTickets] = useState<Ticket[]>([
     {
-      id: "ticket-1",
+      id: "TICK-001",
       title: "Unable to stream 4K content",
-      description: "I'm having issues streaming 4K movies. The video keeps buffering.",
-      status: "open",
-      priority: "high",
+      description: "I'm having trouble streaming 4K movies. The video keeps buffering.",
       category: "technical",
+      priority: "high",
+      status: "in-progress",
       createdAt: new Date(Date.now() - 86400000).toISOString(),
       updatedAt: new Date(Date.now() - 3600000).toISOString(),
-      userId: user?.id || "",
+      userId: "user-123",
+      userName: "John Smith",
+      userEmail: "john@example.com",
       messages: [
         {
-          id: "msg-1",
-          content: "I'm having issues streaming 4K movies. The video keeps buffering every few minutes.",
-          userId: user?.id || "",
-          username: user?.username || "",
-          avatar: user?.avatar,
+          id: "1",
+          content: "I'm having trouble streaming 4K movies. The video keeps buffering every few minutes.",
+          sender: "John Smith",
           isStaff: false,
-          createdAt: new Date(Date.now() - 86400000).toISOString(),
+          timestamp: new Date(Date.now() - 86400000).toISOString(),
+          userId: "user-123",
         },
         {
-          id: "msg-2",
+          id: "2",
           content:
-            "Hi! I'll look into this for you. Can you tell me which device you're using and your internet speed?",
-          userId: "staff-1",
-          username: "Support Team",
-          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=support",
+            "Hi John! I can help you with that. Can you tell me what device you're using and your internet speed?",
+          sender: "Support Team",
           isStaff: true,
-          createdAt: new Date(Date.now() - 3600000).toISOString(),
+          timestamp: new Date(Date.now() - 82800000).toISOString(),
+        },
+        {
+          id: "3",
+          content: "I'm using a Samsung TV app and my internet speed is 50 Mbps.",
+          sender: "John Smith",
+          isStaff: false,
+          timestamp: new Date(Date.now() - 79200000).toISOString(),
+          userId: "user-123",
         },
       ],
     },
     {
-      id: "ticket-2",
-      title: "Billing question about family plan",
-      description: "I want to upgrade to the family plan but have questions about pricing.",
-      status: "resolved",
-      priority: "medium",
-      category: "billing",
+      id: "TICK-002",
+      title: "Feature request: Dark mode",
+      description: "Would love to see a dark mode option for the web interface.",
+      category: "feature",
+      priority: "low",
+      status: "open",
       createdAt: new Date(Date.now() - 172800000).toISOString(),
-      updatedAt: new Date(Date.now() - 7200000).toISOString(),
-      userId: user?.id || "",
-      messages: [],
+      updatedAt: new Date(Date.now() - 172800000).toISOString(),
+      userId: "user-456",
+      userName: "Sarah Johnson",
+      userEmail: "sarah@example.com",
+      messages: [
+        {
+          id: "1",
+          content: "Would love to see a dark mode option for the web interface. It would be great for night viewing.",
+          sender: "Sarah Johnson",
+          isStaff: false,
+          timestamp: new Date(Date.now() - 172800000).toISOString(),
+          userId: "user-456",
+        },
+      ],
+    },
+    {
+      id: "TICK-003",
+      title: "Billing question about family plan",
+      description: "I have a question about upgrading to the family plan.",
+      category: "billing",
+      priority: "medium",
+      status: "resolved",
+      createdAt: new Date(Date.now() - 259200000).toISOString(),
+      updatedAt: new Date(Date.now() - 86400000).toISOString(),
+      userId: "user-789",
+      userName: "Mike Wilson",
+      userEmail: "mike@example.com",
+      messages: [
+        {
+          id: "1",
+          content: "I have a question about upgrading to the family plan. What's included?",
+          sender: "Mike Wilson",
+          isStaff: false,
+          timestamp: new Date(Date.now() - 259200000).toISOString(),
+          userId: "user-789",
+        },
+        {
+          id: "2",
+          content:
+            "The family plan includes 10 user profiles, unlimited streams, and parental controls. Would you like me to upgrade your account?",
+          sender: "Support Team",
+          isStaff: true,
+          timestamp: new Date(Date.now() - 172800000).toISOString(),
+        },
+        {
+          id: "3",
+          content: "Yes, please upgrade my account. Thank you!",
+          sender: "Mike Wilson",
+          isStaff: false,
+          timestamp: new Date(Date.now() - 86400000).toISOString(),
+          userId: "user-789",
+        },
+      ],
     },
   ])
 
+  const [searchQuery, setSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
-  const [newTicketForm, setNewTicketForm] = useState({
+  const [newMessage, setNewMessage] = useState("")
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [newTicket, setNewTicket] = useState({
     title: "",
     description: "",
     category: "",
-    priority: "medium",
+    priority: "medium" as const,
   })
-  const [newMessage, setNewMessage] = useState("")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "open":
-        return <AlertCircle className="h-4 w-4 text-orange-500" />
-      case "in-progress":
-        return <Clock className="h-4 w-4 text-blue-500" />
-      case "resolved":
-        return <CheckCircle className="h-4 w-4 text-green-500" />
-      case "closed":
-        return <XCircle className="h-4 w-4 text-gray-500" />
-      default:
-        return <AlertCircle className="h-4 w-4 text-orange-500" />
-    }
-  }
+  // Filter tickets based on user role
+  const filteredTickets = tickets.filter((ticket) => {
+    const matchesSearch =
+      ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ticket.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ticket.userName.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesStatus = statusFilter === "all" || ticket.status === statusFilter
 
-  const getStatusBadge = (status: string) => {
-    const colors = {
-      open: "bg-orange-100 text-orange-700",
-      "in-progress": "bg-blue-100 text-blue-700",
-      resolved: "bg-green-100 text-green-700",
-      closed: "bg-gray-100 text-gray-700",
-    }
-    return colors[status as keyof typeof colors] || colors.open
-  }
+    // Admin sees all tickets, users see only their own
+    const matchesUser = isAdmin || ticket.userId === user?.id
 
-  const getPriorityBadge = (priority: string) => {
-    const colors = {
-      low: "bg-gray-100 text-gray-700",
-      medium: "bg-yellow-100 text-yellow-700",
-      high: "bg-orange-100 text-orange-700",
-      urgent: "bg-red-100 text-red-700",
-    }
-    return colors[priority as keyof typeof colors] || colors.medium
-  }
+    return matchesSearch && matchesStatus && matchesUser
+  })
 
   const handleCreateTicket = () => {
-    if (!newTicketForm.title || !newTicketForm.description || !newTicketForm.category) return
+    if (!user) return
 
-    const newTicket: Ticket = {
-      id: `ticket-${Date.now()}`,
-      title: newTicketForm.title,
-      description: newTicketForm.description,
+    const ticket: Ticket = {
+      id: `TICK-${String(tickets.length + 1).padStart(3, "0")}`,
+      ...newTicket,
       status: "open",
-      priority: newTicketForm.priority as any,
-      category: newTicketForm.category as any,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      userId: user?.id || "",
+      userId: user.id,
+      userName: user.username,
+      userEmail: user.email,
       messages: [
         {
-          id: `msg-${Date.now()}`,
-          content: newTicketForm.description,
-          userId: user?.id || "",
-          username: user?.username || "",
-          avatar: user?.avatar,
+          id: "1",
+          content: newTicket.description,
+          sender: user.username,
           isStaff: false,
-          createdAt: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
+          userId: user.id,
         },
       ],
     }
 
-    setTickets([newTicket, ...tickets])
-    setNewTicketForm({ title: "", description: "", category: "", priority: "medium" })
+    setTickets([ticket, ...tickets])
+    setNewTicket({ title: "", description: "", category: "", priority: "medium" })
+    setShowCreateDialog(false)
   }
 
   const handleSendMessage = () => {
-    if (!newMessage.trim() || !selectedTicket) return
+    if (!selectedTicket || !newMessage.trim() || !user) return
 
-    const message: TicketMessage = {
-      id: `msg-${Date.now()}`,
+    const message = {
+      id: (selectedTicket.messages.length + 1).toString(),
       content: newMessage,
-      userId: user?.id || "",
-      username: user?.username || "",
-      avatar: user?.avatar,
-      isStaff: false,
-      createdAt: new Date().toISOString(),
+      sender: user.username,
+      isStaff: isAdmin,
+      timestamp: new Date().toISOString(),
+      userId: user.id,
     }
 
     const updatedTicket = {
       ...selectedTicket,
       messages: [...selectedTicket.messages, message],
       updatedAt: new Date().toISOString(),
+      status: isAdmin && selectedTicket.status === "open" ? ("in-progress" as const) : selectedTicket.status,
     }
 
     setTickets(tickets.map((t) => (t.id === selectedTicket.id ? updatedTicket : t)))
@@ -205,19 +247,69 @@ export function TicketSystem() {
     setNewMessage("")
   }
 
-  const filteredTickets = tickets.filter((ticket) => {
-    const matchesSearch =
-      ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.description.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesStatus = statusFilter === "all" || ticket.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
+  const handleStatusChange = (ticketId: string, newStatus: string) => {
+    if (!isAdmin) return
+
+    const updatedTickets = tickets.map((ticket) =>
+      ticket.id === ticketId ? { ...ticket, status: newStatus as any, updatedAt: new Date().toISOString() } : ticket,
+    )
+    setTickets(updatedTickets)
+
+    if (selectedTicket?.id === ticketId) {
+      setSelectedTicket({ ...selectedTicket, status: newStatus as any, updatedAt: new Date().toISOString() })
+    }
+  }
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "urgent":
+        return "bg-red-500"
+      case "high":
+        return "bg-orange-500"
+      case "medium":
+        return "bg-yellow-500"
+      case "low":
+        return "bg-green-500"
+      default:
+        return "bg-gray-500"
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "open":
+        return <Clock className="h-4 w-4" />
+      case "in-progress":
+        return <AlertTriangle className="h-4 w-4" />
+      case "resolved":
+        return <CheckCircle className="h-4 w-4" />
+      case "closed":
+        return <XCircle className="h-4 w-4" />
+      default:
+        return <HelpCircle className="h-4 w-4" />
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "open":
+        return "bg-blue-500"
+      case "in-progress":
+        return "bg-yellow-500"
+      case "resolved":
+        return "bg-green-500"
+      case "closed":
+        return "bg-gray-500"
+      default:
+        return "bg-gray-500"
+    }
+  }
 
   if (!user) {
     return (
-      <Card className="ios-card border-0 text-center p-8">
-        <CardContent>
-          <AlertCircle className="h-12 w-12 text-purple-400 mx-auto mb-4" />
+      <Card className="ios-card border-0">
+        <CardContent className="text-center py-12">
+          <User className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold mb-2">Sign In Required</h3>
           <p className="text-muted-foreground">Please sign in to access the support ticket system.</p>
         </CardContent>
@@ -229,243 +321,370 @@ export function TicketSystem() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent flex items-center gap-2">
+            {isAdmin && <Crown className="h-8 w-8 text-yellow-500" />}
             Support Tickets
+            {isAdmin && (
+              <Badge className="ios-badge bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0">
+                Admin
+              </Badge>
+            )}
           </h2>
-          <p className="text-muted-foreground mt-2">Get help from our support team</p>
+          <p className="text-lg text-muted-foreground mt-2">
+            {isAdmin ? "Manage all support tickets" : "Get help from our support team"}
+          </p>
         </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button className="ios-button text-white border-0">
-              <Plus className="h-4 w-4 mr-2" />
-              New Ticket
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Create Support Ticket</DialogTitle>
-              <DialogDescription>Describe your issue and we'll help you resolve it</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="ticket-title">Title</Label>
-                <Input
-                  id="ticket-title"
-                  placeholder="Brief description of your issue"
-                  value={newTicketForm.title}
-                  onChange={(e) => setNewTicketForm({ ...newTicketForm, title: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ticket-category">Category</Label>
-                <Select
-                  value={newTicketForm.category}
-                  onValueChange={(value) => setNewTicketForm({ ...newTicketForm, category: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="technical">Technical Support</SelectItem>
-                    <SelectItem value="billing">Billing & Account</SelectItem>
-                    <SelectItem value="general">General Question</SelectItem>
-                    <SelectItem value="feature-request">Feature Request</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ticket-priority">Priority</Label>
-                <Select
-                  value={newTicketForm.priority}
-                  onValueChange={(value) => setNewTicketForm({ ...newTicketForm, priority: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="urgent">Urgent</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ticket-description">Description</Label>
-                <Textarea
-                  id="ticket-description"
-                  placeholder="Provide detailed information about your issue"
-                  value={newTicketForm.description}
-                  onChange={(e) => setNewTicketForm({ ...newTicketForm, description: e.target.value })}
-                  rows={4}
-                />
-              </div>
-              <Button onClick={handleCreateTicket} className="w-full ios-button text-white border-0">
-                Create Ticket
+        {!isAdmin && (
+          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+            <DialogTrigger asChild>
+              <Button className="ios-button text-white border-0">
+                <Plus className="h-4 w-4 mr-2" />
+                New Ticket
               </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Create Support Ticket</DialogTitle>
+                <DialogDescription>Describe your issue and we'll help you resolve it</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="ticket-title">Title</Label>
+                  <Input
+                    id="ticket-title"
+                    placeholder="Brief description of your issue"
+                    value={newTicket.title}
+                    onChange={(e) => setNewTicket({ ...newTicket, title: e.target.value })}
+                    className="ios-search border-0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ticket-category">Category</Label>
+                  <Select
+                    value={newTicket.category}
+                    onValueChange={(value) => setNewTicket({ ...newTicket, category: value })}
+                  >
+                    <SelectTrigger className="ios-search border-0">
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="technical">Technical Support</SelectItem>
+                      <SelectItem value="billing">Billing & Account</SelectItem>
+                      <SelectItem value="feature">Feature Request</SelectItem>
+                      <SelectItem value="general">General Question</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ticket-priority">Priority</Label>
+                  <Select
+                    value={newTicket.priority}
+                    onValueChange={(value: any) => setNewTicket({ ...newTicket, priority: value })}
+                  >
+                    <SelectTrigger className="ios-search border-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ticket-description">Description</Label>
+                  <Textarea
+                    id="ticket-description"
+                    placeholder="Provide detailed information about your issue"
+                    value={newTicket.description}
+                    onChange={(e) => setNewTicket({ ...newTicket, description: e.target.value })}
+                    className="ios-search border-0 min-h-[100px]"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleCreateTicket} className="ios-button text-white border-0 flex-1">
+                    <HelpCircle className="h-4 w-4 mr-2" />
+                    Create Ticket
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowCreateDialog(false)} className="flex-1">
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+
+      <Tabs defaultValue="tickets" className="space-y-6">
+        <TabsList className="ios-tabs grid w-full grid-cols-2">
+          <TabsTrigger value="tickets">
+            <HelpCircle className="h-4 w-4 mr-2" />
+            {isAdmin ? "All Tickets" : "My Tickets"}
+          </TabsTrigger>
+          <TabsTrigger value="chat" disabled={!selectedTicket}>
+            <MessageSquare className="h-4 w-4 mr-2" />
+            {selectedTicket ? `Ticket #${selectedTicket.id}` : "Select Ticket"}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="tickets" className="space-y-6">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
+              <Input
+                placeholder={isAdmin ? "Search tickets or users..." : "Search tickets..."}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 ios-search border-0"
+              />
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-48 ios-search border-0">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="open">Open</SelectItem>
+                <SelectItem value="in-progress">In Progress</SelectItem>
+                <SelectItem value="resolved">Resolved</SelectItem>
+                <SelectItem value="closed">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-      <div className="flex gap-4 items-center">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
-          <Input
-            placeholder="Search tickets..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="ios-search pl-10 border-0"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40">
-            <Filter className="h-4 w-4 mr-2" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="open">Open</SelectItem>
-            <SelectItem value="in-progress">In Progress</SelectItem>
-            <SelectItem value="resolved">Resolved</SelectItem>
-            <SelectItem value="closed">Closed</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 space-y-4">
-          <h3 className="font-semibold text-foreground">Your Tickets ({filteredTickets.length})</h3>
-          <div className="space-y-3">
+          <div className="space-y-4">
             {filteredTickets.map((ticket) => (
               <Card
                 key={ticket.id}
-                className={`ios-card border-0 cursor-pointer transition-all duration-300 hover:shadow-lg ${
-                  selectedTicket?.id === ticket.id ? "ring-2 ring-purple-400" : ""
-                }`}
+                className="ios-card border-0 cursor-pointer hover:shadow-lg transition-all duration-300"
                 onClick={() => setSelectedTicket(ticket)}
               >
-                <CardContent className="p-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between">
-                      <h4 className="font-medium text-foreground line-clamp-2">{ticket.title}</h4>
-                      {getStatusIcon(ticket.status)}
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2 flex-1">
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-lg">{ticket.title}</CardTitle>
+                        <Badge className={`ios-badge text-white border-0 ${getPriorityColor(ticket.priority)}`}>
+                          {ticket.priority}
+                        </Badge>
+                      </div>
+                      <CardDescription className="line-clamp-2">{ticket.description}</CardDescription>
+                      {isAdmin && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Avatar className="h-5 w-5">
+                            <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${ticket.userName}`} />
+                            <AvatarFallback className="text-xs bg-gradient-to-br from-purple-400 to-indigo-500 text-white">
+                              {ticket.userName.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span>{ticket.userName}</span>
+                          <span>•</span>
+                          <span>{ticket.userEmail}</span>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge className={`text-xs border-0 ${getStatusBadge(ticket.status)}`}>
-                        {ticket.status.replace("-", " ")}
+                    <div className="flex flex-col items-end gap-2 ml-4">
+                      <Badge
+                        className={`ios-badge text-white border-0 ${getStatusColor(ticket.status)} flex items-center gap-1`}
+                      >
+                        {getStatusIcon(ticket.status)}
+                        <span className="capitalize">{ticket.status.replace("-", " ")}</span>
                       </Badge>
-                      <Badge className={`text-xs border-0 ${getPriorityBadge(ticket.priority)}`}>
-                        {ticket.priority}
-                      </Badge>
+                      {isAdmin && (
+                        <Select value={ticket.status} onValueChange={(value) => handleStatusChange(ticket.id, value)}>
+                          <SelectTrigger className="w-32 h-8 text-xs ios-search border-0">
+                            <Settings className="h-3 w-3 mr-1" />
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="open">Open</SelectItem>
+                            <SelectItem value="in-progress">In Progress</SelectItem>
+                            <SelectItem value="resolved">Resolved</SelectItem>
+                            <SelectItem value="closed">Closed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      <p>Updated {getRelativeTime(ticket.updatedAt)}</p>
-                      <p className="flex items-center gap-1 mt-1">
-                        <MessageSquare className="h-3 w-3" />
-                        {ticket.messages.length} messages
-                      </p>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <div className="flex items-center gap-4">
+                      <span>#{ticket.id}</span>
+                      <span className="capitalize">{ticket.category}</span>
+                      <span>{ticket.messages.length} messages</span>
+                    </div>
+                    <div className="text-right">
+                      <div>Created {getRelativeTime(ticket.createdAt)}</div>
+                      <div>Updated {getRelativeTime(ticket.updatedAt)}</div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
-        </div>
 
-        <div className="lg:col-span-2">
+          {filteredTickets.length === 0 && (
+            <div className="text-center py-12">
+              <div className="ios-card rounded-2xl p-8 max-w-md mx-auto">
+                <HelpCircle className="h-12 w-12 text-purple-400 mx-auto mb-4" />
+                <p className="text-muted-foreground">
+                  {searchQuery || statusFilter !== "all"
+                    ? "No tickets match your filters."
+                    : isAdmin
+                      ? "No support tickets yet."
+                      : "No support tickets yet."}
+                </p>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="chat" className="space-y-6">
           {selectedTicket ? (
-            <Card className="ios-card border-0">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-xl">{selectedTicket.title}</CardTitle>
-                    <CardDescription className="mt-2">
-                      Ticket #{selectedTicket.id} • Created {formatUKDateTime(selectedTicket.createdAt)}
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className={`text-xs border-0 ${getStatusBadge(selectedTicket.status)}`}>
-                      {selectedTicket.status.replace("-", " ")}
-                    </Badge>
-                    <Badge className={`text-xs border-0 ${getPriorityBadge(selectedTicket.priority)}`}>
-                      {selectedTicket.priority}
-                    </Badge>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4 max-h-96 overflow-y-auto">
-                  {selectedTicket.messages.map((message) => (
-                    <div key={message.id} className="flex gap-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={message.avatar || "/placeholder.svg"} alt={message.username} />
-                        <AvatarFallback className="text-sm bg-gradient-to-br from-purple-400 to-indigo-500 text-white">
-                          {message.username.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-foreground">{message.username}</span>
-                          {message.isStaff && (
-                            <Badge className="text-xs bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0">
-                              Staff
-                            </Badge>
-                          )}
-                          <span className="text-xs text-muted-foreground">{getRelativeTime(message.createdAt)}</span>
+            <div className="space-y-6">
+              <Card className="ios-card border-0">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        {selectedTicket.title}
+                        <Badge
+                          className={`ios-badge text-white border-0 ${getStatusColor(selectedTicket.status)} flex items-center gap-1`}
+                        >
+                          {getStatusIcon(selectedTicket.status)}
+                          <span className="capitalize">{selectedTicket.status.replace("-", " ")}</span>
+                        </Badge>
+                      </CardTitle>
+                      <CardDescription>
+                        Ticket #{selectedTicket.id} • {selectedTicket.category} • Created{" "}
+                        {formatUKDateTime(selectedTicket.createdAt)}
+                      </CardDescription>
+                      {isAdmin && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage
+                              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedTicket.userName}`}
+                            />
+                            <AvatarFallback className="text-xs bg-gradient-to-br from-purple-400 to-indigo-500 text-white">
+                              {selectedTicket.userName.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm font-medium">{selectedTicket.userName}</span>
+                          <span className="text-sm text-muted-foreground">({selectedTicket.userEmail})</span>
                         </div>
-                        <div className="p-3 bg-purple-50 rounded-xl">
-                          <p className="text-sm text-foreground">{message.content}</p>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <Badge className={`ios-badge text-white border-0 ${getPriorityColor(selectedTicket.priority)}`}>
+                        {selectedTicket.priority} priority
+                      </Badge>
+                      {isAdmin && (
+                        <Select
+                          value={selectedTicket.status}
+                          onValueChange={(value) => handleStatusChange(selectedTicket.id, value)}
+                        >
+                          <SelectTrigger className="w-36 h-8 text-xs ios-search border-0">
+                            <Settings className="h-3 w-3 mr-1" />
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="open">Open</SelectItem>
+                            <SelectItem value="in-progress">In Progress</SelectItem>
+                            <SelectItem value="resolved">Resolved</SelectItem>
+                            <SelectItem value="closed">Closed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+              </Card>
+
+              <Card className="ios-card border-0">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5 text-purple-500" />
+                    Conversation
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 max-h-96 overflow-y-auto">
+                  {selectedTicket.messages.map((message) => (
+                    <div key={message.id} className={`flex gap-3 ${message.isStaff ? "flex-row" : "flex-row-reverse"}`}>
+                      <div className={`p-2 rounded-xl ${message.isStaff ? "bg-blue-500" : "bg-purple-500"}`}>
+                        {message.isStaff ? (
+                          <Shield className="h-4 w-4 text-white" />
+                        ) : (
+                          <User className="h-4 w-4 text-white" />
+                        )}
+                      </div>
+                      <div className={`flex-1 max-w-xs ${message.isStaff ? "text-left" : "text-right"}`}>
+                        <div
+                          className={`p-3 rounded-xl ${
+                            message.isStaff ? "bg-blue-50 text-blue-900" : "bg-purple-50 text-purple-900"
+                          }`}
+                        >
+                          <p className="text-sm">{message.content}</p>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                          <span>{message.sender}</span>
+                          {message.isStaff && (
+                            <Badge className="ios-badge text-xs bg-blue-500 text-white border-0">Staff</Badge>
+                          )}
+                          <span>•</span>
+                          <span>{getRelativeTime(message.timestamp)}</span>
                         </div>
                       </div>
                     </div>
                   ))}
-                </div>
+                </CardContent>
+              </Card>
 
-                {selectedTicket.status !== "closed" && (
-                  <div className="border-t pt-4">
-                    <div className="flex gap-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.username} />
-                        <AvatarFallback className="text-sm bg-gradient-to-br from-purple-400 to-indigo-500 text-white">
-                          {user.username.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 space-y-3">
-                        <Textarea
-                          placeholder="Type your message..."
-                          value={newMessage}
-                          onChange={(e) => setNewMessage(e.target.value)}
-                          rows={3}
-                          className="resize-none"
-                        />
-                        <div className="flex items-center justify-between">
-                          <Button variant="outline" size="sm">
-                            <Paperclip className="h-4 w-4 mr-2" />
-                            Attach File
-                          </Button>
-                          <Button onClick={handleSendMessage} className="ios-button text-white border-0">
-                            <Send className="h-4 w-4 mr-2" />
-                            Send Message
-                          </Button>
-                        </div>
-                      </div>
+              <Card className="ios-card border-0">
+                <CardContent className="p-4">
+                  <div className="flex gap-2">
+                    <div className="flex-1 relative">
+                      <Textarea
+                        placeholder={isAdmin ? "Reply as support team..." : "Type your message..."}
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        className="ios-search border-0 min-h-[80px] pr-12"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault()
+                            handleSendMessage()
+                          }
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        className="absolute bottom-2 right-2 h-8 w-8 p-0 ios-button text-white border-0"
+                        onClick={handleSendMessage}
+                        disabled={!newMessage.trim()}
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
                     </div>
+                    <Button variant="outline" size="sm" className="ios-button bg-transparent">
+                      <Paperclip className="h-4 w-4" />
+                    </Button>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           ) : (
-            <Card className="ios-card border-0 text-center p-12">
-              <CardContent>
+            <div className="text-center py-12">
+              <div className="ios-card rounded-2xl p-8 max-w-md mx-auto">
                 <MessageSquare className="h-12 w-12 text-purple-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Select a Ticket</h3>
-                <p className="text-muted-foreground">Choose a ticket from the list to view the conversation</p>
-              </CardContent>
-            </Card>
+                <p className="text-muted-foreground">Select a ticket to view the conversation</p>
+              </div>
+            </div>
           )}
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

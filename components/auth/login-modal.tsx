@@ -3,13 +3,13 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, User, Mail, Lock, UserPlus, LogIn } from "lucide-react"
+import { LogIn, UserPlus, Loader2, AlertCircle, Crown } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 
 interface LoginModalProps {
@@ -20,24 +20,33 @@ interface LoginModalProps {
 export function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const { login, register } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [loginForm, setLoginForm] = useState({ username: "", password: "" })
-  const [registerForm, setRegisterForm] = useState({ username: "", email: "", password: "", confirmPassword: "" })
+  const [error, setError] = useState("")
+  const [loginForm, setLoginForm] = useState({
+    username: "",
+    password: "",
+  })
+  const [registerForm, setRegisterForm] = useState({
+    username: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  })
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    setError(null)
+    setError("")
 
     try {
       const success = await login(loginForm.username, loginForm.password)
       if (success) {
         onClose()
+        setLoginForm({ username: "", password: "" })
       } else {
         setError("Invalid username or password")
       }
-    } catch (error) {
-      setError("Login failed. Please try again.")
+    } catch (err) {
+      setError("An error occurred during login")
     } finally {
       setIsLoading(false)
     }
@@ -46,7 +55,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    setError(null)
+    setError("")
 
     if (registerForm.password !== registerForm.confirmPassword) {
       setError("Passwords do not match")
@@ -58,30 +67,31 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
       const success = await register(registerForm.username, registerForm.email, registerForm.password)
       if (success) {
         onClose()
+        setRegisterForm({ username: "", email: "", password: "", confirmPassword: "" })
       } else {
-        setError("Registration failed. Please try again.")
+        setError("Registration failed")
       }
-    } catch (error) {
-      setError("Registration failed. Please try again.")
+    } catch (err) {
+      setError("An error occurred during registration")
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleAdminLogin = () => {
+    setLoginForm({ username: "ogadmin", password: "Ebony2025" })
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-center text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-            Welcome to OG JELLYFIN
-          </DialogTitle>
-          <DialogDescription className="text-center">
-            Sign in to access your profile, tickets, messages, and forum
-          </DialogDescription>
+          <DialogTitle className="text-center">Welcome to OG JELLYFIN</DialogTitle>
+          <DialogDescription className="text-center">Sign in to your account or create a new one</DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="login" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+        <Tabs defaultValue="login" className="space-y-4">
+          <TabsList className="ios-tabs grid w-full grid-cols-2">
             <TabsTrigger value="login">
               <LogIn className="h-4 w-4 mr-2" />
               Sign In
@@ -96,39 +106,33 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="login-username">Username</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
-                  <Input
-                    id="login-username"
-                    type="text"
-                    placeholder="Enter your username"
-                    value={loginForm.username}
-                    onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
-                    className="pl-10"
-                    required
-                  />
-                </div>
+                <Input
+                  id="login-username"
+                  type="text"
+                  placeholder="Enter your username"
+                  value={loginForm.username}
+                  onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
+                  className="ios-search border-0"
+                  required
+                />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="login-password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
-                  <Input
-                    id="login-password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={loginForm.password}
-                    onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                    className="pl-10"
-                    required
-                  />
-                </div>
+                <Input
+                  id="login-password"
+                  type="password"
+                  placeholder="Enter your password"
+                  value={loginForm.password}
+                  onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                  className="ios-search border-0"
+                  required
+                />
               </div>
 
               {error && (
-                <Alert className="border-red-200">
-                  <AlertDescription className="text-red-700">{error}</AlertDescription>
+                <Alert className="border-red-200 bg-red-50">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-800">{error}</AlertDescription>
                 </Alert>
               )}
 
@@ -145,6 +149,25 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   </>
                 )}
               </Button>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-purple-200" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-muted-foreground">Admin Access</span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                onClick={handleAdminLogin}
+                variant="outline"
+                className="w-full ios-button bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200 text-yellow-700 hover:bg-gradient-to-r hover:from-yellow-100 hover:to-orange-100"
+              >
+                <Crown className="h-4 w-4 mr-2" />
+                Quick Admin Login
+              </Button>
             </form>
           </TabsContent>
 
@@ -152,71 +175,57 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
             <form onSubmit={handleRegister} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="register-username">Username</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
-                  <Input
-                    id="register-username"
-                    type="text"
-                    placeholder="Choose a username"
-                    value={registerForm.username}
-                    onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value })}
-                    className="pl-10"
-                    required
-                  />
-                </div>
+                <Input
+                  id="register-username"
+                  type="text"
+                  placeholder="Choose a username"
+                  value={registerForm.username}
+                  onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value })}
+                  className="ios-search border-0"
+                  required
+                />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="register-email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
-                  <Input
-                    id="register-email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={registerForm.email}
-                    onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
-                    className="pl-10"
-                    required
-                  />
-                </div>
+                <Input
+                  id="register-email"
+                  type="email"
+                  placeholder="Enter your email"
+                  value={registerForm.email}
+                  onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
+                  className="ios-search border-0"
+                  required
+                />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="register-password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
-                  <Input
-                    id="register-password"
-                    type="password"
-                    placeholder="Create a password"
-                    value={registerForm.password}
-                    onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
-                    className="pl-10"
-                    required
-                  />
-                </div>
+                <Input
+                  id="register-password"
+                  type="password"
+                  placeholder="Create a password"
+                  value={registerForm.password}
+                  onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
+                  className="ios-search border-0"
+                  required
+                />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="register-confirm-password">Confirm Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
-                  <Input
-                    id="register-confirm-password"
-                    type="password"
-                    placeholder="Confirm your password"
-                    value={registerForm.confirmPassword}
-                    onChange={(e) => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })}
-                    className="pl-10"
-                    required
-                  />
-                </div>
+                <Input
+                  id="register-confirm-password"
+                  type="password"
+                  placeholder="Confirm your password"
+                  value={registerForm.confirmPassword}
+                  onChange={(e) => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })}
+                  className="ios-search border-0"
+                  required
+                />
               </div>
 
               {error && (
-                <Alert className="border-red-200">
-                  <AlertDescription className="text-red-700">{error}</AlertDescription>
+                <Alert className="border-red-200 bg-red-50">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-800">{error}</AlertDescription>
                 </Alert>
               )}
 

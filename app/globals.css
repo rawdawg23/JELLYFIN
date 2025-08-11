@@ -122,12 +122,153 @@
   body {
     @apply bg-background text-foreground;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
-    background: linear-gradient(135deg, oklch(0.98 0.01 280) 0%, oklch(0.95 0.03 290) 100%);
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* John Wick Animated Background */
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -2;
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 25%, #16213e 50%, #0f3460 75%, #0a0a0a 100%);
+    animation: backgroundShift 20s ease-in-out infinite;
+  }
+
+  body::after {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background: radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 40% 40%, rgba(120, 119, 198, 0.2) 0%, transparent 50%);
+    animation: wickGlow 15s ease-in-out infinite;
+  }
+
+  /* Floating particles effect */
+  .john-wick-particles {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .john-wick-particles::before,
+  .john-wick-particles::after {
+    content: "";
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 50%;
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .john-wick-particles::before {
+    top: 20%;
+    left: 10%;
+    animation-delay: -2s;
+  }
+
+  .john-wick-particles::after {
+    top: 60%;
+    right: 15%;
+    animation-delay: -4s;
+  }
+
+  /* Main content overlay */
+  .main-content {
+    position: relative;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     min-height: 100vh;
   }
 
-  .dark body {
-    background: linear-gradient(135deg, oklch(0.08 0.02 280) 0%, oklch(0.05 0.04 290) 100%);
+  .dark .main-content {
+    background: rgba(0, 0, 0, 0.85);
+  }
+}
+
+/* John Wick Animations */
+@keyframes backgroundShift {
+  0%,
+  100% {
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 25%, #16213e 50%, #0f3460 75%, #0a0a0a 100%);
+  }
+  25% {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 25%, #0f3460 50%, #0a0a0a 75%, #1a1a2e 100%);
+  }
+  50% {
+    background: linear-gradient(135deg, #16213e 0%, #0f3460 25%, #0a0a0a 50%, #1a1a2e 75%, #16213e 100%);
+  }
+  75% {
+    background: linear-gradient(135deg, #0f3460 0%, #0a0a0a 25%, #1a1a2e 50%, #16213e 75%, #0f3460 100%);
+  }
+}
+
+@keyframes wickGlow {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    opacity: 0.5;
+    transform: scale(1.1) rotate(90deg);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.9) rotate(180deg);
+  }
+  75% {
+    opacity: 0.6;
+    transform: scale(1.05) rotate(270deg);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px) translateX(0px);
+    opacity: 0.5;
+  }
+  25% {
+    transform: translateY(-20px) translateX(10px);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-40px) translateX(-5px);
+    opacity: 0.8;
+  }
+  75% {
+    transform: translateY(-20px) translateX(-10px);
+    opacity: 0.6;
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .main-content {
+    padding: 0.5rem;
   }
 }
 
@@ -192,52 +333,27 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* Custom animations for library cards */
-@keyframes slideInFromBottom {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
+/* Responsive tabs */
+@media (max-width: 768px) {
+  .ios-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  .ios-tabs::-webkit-scrollbar {
+    display: none;
   }
-}
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
+  .ios-tabs .grid {
+    display: flex;
+    min-width: max-content;
   }
-  to {
-    opacity: 1;
+
+  .ios-tabs .grid > * {
+    flex-shrink: 0;
+    min-width: 120px;
   }
-}
-
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-.animate-slide-in {
-  animation: slideInFromBottom 1s ease-out forwards;
-}
-
-.animate-fade-in {
-  animation: fadeIn 1s ease-out forwards;
-}
-
-.animate-float {
-  animation: float 3s ease-in-out infinite;
-}
-
-/* Smooth scrolling for the entire page */
-html {
-  scroll-behavior: smooth;
 }
 
 /* Enhanced card hover effects */
@@ -257,11 +373,6 @@ html {
 .library-card:hover {
   transform: translateY(-8px) scale(1.02);
   box-shadow: 0 20px 40px rgba(139, 69, 199, 0.2);
-}
-
-/* Staggered animation for cards */
-.stagger-animation {
-  animation-fill-mode: both;
 }
 
 /* iOS-style search bar */
@@ -322,4 +433,131 @@ html {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Responsive grid adjustments */
+@media (max-width: 640px) {
+  .grid-cols-2 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+
+  .md\:grid-cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lg\:grid-cols-6 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .md\:grid-cols-2 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+
+  .lg\:grid-cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Mobile-first responsive text */
+@media (max-width: 640px) {
+  .text-4xl {
+    font-size: 2rem;
+    line-height: 2.5rem;
+  }
+
+  .text-3xl {
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+  }
+
+  .text-2xl {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+
+  .text-xl {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+  }
+}
+
+/* Mobile navigation improvements */
+@media (max-width: 768px) {
+  .flex-col {
+    gap: 0.5rem;
+  }
+
+  .space-y-8 > * + * {
+    margin-top: 1.5rem;
+  }
+
+  .space-y-6 > * + * {
+    margin-top: 1rem;
+  }
+
+  .space-y-4 > * + * {
+    margin-top: 0.75rem;
+  }
+}
+
+/* Smooth scrolling for the entire page */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom animations for library cards */
+@keyframes slideInFromBottom {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slideInFromBottom 1s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 1s ease-out forwards;
+}
+
+/* Staggered animation for cards */
+.stagger-animation {
+  animation-fill-mode: both;
+}
+
+/* Mobile-optimized dialog */
+@media (max-width: 640px) {
+  [data-radix-dialog-content] {
+    width: 95vw;
+    max-width: 95vw;
+    margin: 0;
+  }
+}
+
+/* Touch-friendly buttons on mobile */
+@media (max-width: 768px) {
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .ios-button {
+    padding: 0.75rem 1rem;
+  }
 }
