@@ -220,26 +220,6 @@
   background-clip: text;
 }
 
-.gradient-hero {
-  background: linear-gradient(135deg, #7c3aed 0%, #3b82f6 50%, #06b6d4 100%);
-}
-
-.gradient-card-purple {
-  background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
-}
-
-.gradient-card-green {
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-}
-
-.gradient-card-blue {
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-}
-
-.gradient-card-orange {
-  background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%);
-}
-
 /* Mobile-optimized 3D transforms */
 @media (max-width: 768px) {
   .mobile-3d-reduced {
@@ -343,15 +323,6 @@
   [role="button"] {
     min-height: 44px;
     min-width: 44px;
-  }
-
-  .touch-card {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-  }
-
-  .touch-card:active {
-    transform: scale(0.95);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
 }
 
@@ -475,20 +446,6 @@
     padding-top: 1.5rem !important;
     padding-bottom: 1.5rem !important;
   }
-
-  .mobile-spacing {
-    padding: 1rem;
-    margin-bottom: 1rem;
-  }
-
-  .mobile-grid-gap {
-    gap: 0.75rem;
-  }
-
-  .mobile-text-responsive {
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-  }
 }
 
 /* Performance optimizations for mobile */
@@ -523,10 +480,6 @@
 
   .safe-area-inset-right {
     padding-right: max(1rem, env(safe-area-inset-right));
-  }
-
-  .mobile-bottom-safe {
-    padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
   }
 }
 

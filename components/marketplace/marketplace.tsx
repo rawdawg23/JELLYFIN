@@ -391,7 +391,7 @@ export function Marketplace() {
                         onClick={() => handleMessageSeller(item.seller.id, item.seller.name)}
                       >
                         <MessageCircle className="h-4 w-4 mr-2" />
-                        Contact Seller
+                        Message Seller
                       </Button>
                       <Button
                         variant="outline"
@@ -493,7 +493,7 @@ export function Marketplace() {
                     disabled={!item.inStock}
                   >
                     <MessageCircle className="h-3 w-3 mr-1" />
-                    Contact
+                    Message
                   </Button>
                   <Button
                     variant="outline"

@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -80,36 +81,33 @@ export function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={() => {}}>
       <DialogContent
-        className="w-[95vw] max-w-[425px] max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 border-purple-500/20 text-white"
+        className="sm:max-w-[425px] bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 border-purple-500/20 text-white"
         hideClose
       >
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 rounded-lg animate-pulse" />
         <div className="relative z-10">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 text-xl sm:text-2xl">
-              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center animate-pulse">
-                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+            <DialogTitle className="flex items-center gap-3 text-2xl">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center animate-pulse">
+                <Sparkles className="h-5 w-5 text-white" />
               </div>
               <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
                 Welcome To OG SERVICES
               </span>
             </DialogTitle>
-            <DialogDescription className="text-gray-300 text-sm">
+            <DialogDescription className="text-gray-300">
               Join the ultimate media streaming marketplace
             </DialogDescription>
           </DialogHeader>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-4 sm:mt-6">
-            <TabsList className="grid w-full grid-cols-2 bg-slate-800/50 border border-purple-500/20 h-12">
-              <TabsTrigger
-                value="login"
-                className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-sm sm:text-base h-10"
-              >
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-6">
+            <TabsList className="grid w-full grid-cols-2 bg-slate-800/50 border border-purple-500/20">
+              <TabsTrigger value="login" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
                 Sign In
               </TabsTrigger>
               <TabsTrigger
                 value="register"
-                className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-sm sm:text-base h-10"
+                className="data-[state=active]:bg-purple-600 data-[state=active]:text-white"
               >
                 Register
               </TabsTrigger>
@@ -117,16 +115,16 @@ export function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
 
             <TabsContent value="login">
               <Card className="bg-slate-800/30 border-purple-500/20 backdrop-blur-sm">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-white text-lg sm:text-xl">Welcome Back</CardTitle>
-                  <CardDescription className="text-gray-300 text-sm">
+                <CardHeader>
+                  <CardTitle className="text-white">Welcome Back</CardTitle>
+                  <CardDescription className="text-gray-300">
                     Sign in to access your premium media experience
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleLogin} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="username" className="text-gray-200 text-sm">
+                      <Label htmlFor="username" className="text-gray-200">
                         Username
                       </Label>
                       <Input
@@ -136,11 +134,11 @@ export function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
                         value={loginData.username}
                         onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
                         disabled={isLoading}
-                        className="bg-slate-700/50 border-purple-500/30 text-white placeholder:text-gray-400 focus:border-purple-400 h-12 text-base"
+                        className="bg-slate-700/50 border-purple-500/30 text-white placeholder:text-gray-400 focus:border-purple-400"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="password" className="text-gray-200 text-sm">
+                      <Label htmlFor="password" className="text-gray-200">
                         Password
                       </Label>
                       <div className="relative">
@@ -151,40 +149,40 @@ export function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
                           value={loginData.password}
                           onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                           disabled={isLoading}
-                          className="bg-slate-700/50 border-purple-500/30 text-white placeholder:text-gray-400 focus:border-purple-400 pr-12 h-12 text-base"
+                          className="bg-slate-700/50 border-purple-500/30 text-white placeholder:text-gray-400 focus:border-purple-400 pr-10"
                         />
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="absolute right-0 top-0 h-12 w-12 px-3 py-2 hover:bg-transparent text-gray-400 hover:text-white"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-gray-400 hover:text-white"
                           onClick={() => setShowPassword(!showPassword)}
                           disabled={isLoading}
                         >
-                          {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </Button>
                       </div>
                     </div>
 
                     {error && (
                       <Alert variant="destructive" className="bg-red-900/20 border-red-500/50 text-red-200">
-                        <AlertDescription className="text-sm">{error}</AlertDescription>
+                        <AlertDescription>{error}</AlertDescription>
                       </Alert>
                     )}
 
                     <Button
                       type="submit"
-                      className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 h-12 text-base"
+                      className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105"
                       disabled={isLoading}
                     >
                       {isLoading ? (
                         <>
-                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Signing in...
                         </>
                       ) : (
                         <>
-                          <Sparkles className="mr-2 h-5 w-5" />
+                          <Sparkles className="mr-2 h-4 w-4" />
                           Sign In
                         </>
                       )}
@@ -196,16 +194,16 @@ export function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
 
             <TabsContent value="register">
               <Card className="bg-slate-800/30 border-purple-500/20 backdrop-blur-sm">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-white text-lg sm:text-xl">Join the Community</CardTitle>
-                  <CardDescription className="text-gray-300 text-sm">
+                <CardHeader>
+                  <CardTitle className="text-white">Join the Community</CardTitle>
+                  <CardDescription className="text-gray-300">
                     Create your account and start your premium journey
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleRegister} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="reg-username" className="text-gray-200 text-sm">
+                      <Label htmlFor="reg-username" className="text-gray-200">
                         Username
                       </Label>
                       <Input
@@ -215,11 +213,11 @@ export function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
                         value={registerData.username}
                         onChange={(e) => setRegisterData({ ...registerData, username: e.target.value })}
                         disabled={isLoading}
-                        className="bg-slate-700/50 border-purple-500/30 text-white placeholder:text-gray-400 focus:border-purple-400 h-12 text-base"
+                        className="bg-slate-700/50 border-purple-500/30 text-white placeholder:text-gray-400 focus:border-purple-400"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="email" className="text-gray-200 text-sm">
+                      <Label htmlFor="email" className="text-gray-200">
                         Email
                       </Label>
                       <Input
@@ -229,11 +227,11 @@ export function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
                         value={registerData.email}
                         onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
                         disabled={isLoading}
-                        className="bg-slate-700/50 border-purple-500/30 text-white placeholder:text-gray-400 focus:border-purple-400 h-12 text-base"
+                        className="bg-slate-700/50 border-purple-500/30 text-white placeholder:text-gray-400 focus:border-purple-400"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="reg-password" className="text-gray-200 text-sm">
+                      <Label htmlFor="reg-password" className="text-gray-200">
                         Password
                       </Label>
                       <Input
@@ -243,11 +241,11 @@ export function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
                         value={registerData.password}
                         onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
                         disabled={isLoading}
-                        className="bg-slate-700/50 border-purple-500/30 text-white placeholder:text-gray-400 focus:border-purple-400 h-12 text-base"
+                        className="bg-slate-700/50 border-purple-500/30 text-white placeholder:text-gray-400 focus:border-purple-400"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="confirm-password" className="text-gray-200 text-sm">
+                      <Label htmlFor="confirm-password" className="text-gray-200">
                         Confirm Password
                       </Label>
                       <Input
@@ -257,29 +255,29 @@ export function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
                         value={registerData.confirmPassword}
                         onChange={(e) => setRegisterData({ ...registerData, confirmPassword: e.target.value })}
                         disabled={isLoading}
-                        className="bg-slate-700/50 border-purple-500/30 text-white placeholder:text-gray-400 focus:border-purple-400 h-12 text-base"
+                        className="bg-slate-700/50 border-purple-500/30 text-white placeholder:text-gray-400 focus:border-purple-400"
                       />
                     </div>
 
                     {error && (
                       <Alert variant="destructive" className="bg-red-900/20 border-red-500/50 text-red-200">
-                        <AlertDescription className="text-sm">{error}</AlertDescription>
+                        <AlertDescription>{error}</AlertDescription>
                       </Alert>
                     )}
 
                     <Button
                       type="submit"
-                      className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 h-12 text-base"
+                      className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105"
                       disabled={isLoading}
                     >
                       {isLoading ? (
                         <>
-                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Creating account...
                         </>
                       ) : (
                         <>
-                          <Sparkles className="mr-2 h-5 w-5" />
+                          <Sparkles className="mr-2 h-4 w-4" />
                           Create Account
                         </>
                       )}
