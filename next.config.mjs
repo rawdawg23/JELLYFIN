@@ -31,7 +31,6 @@ const nextConfig = {
   },
   experimental: {
     esmExternals: 'loose',
-    serverComponentsExternalPackages: ['three', '@react-three/fiber', '@react-three/drei'],
   },
   webpack: (config, { isServer }) => {
     config.resolve.fallback = {
@@ -67,7 +66,7 @@ const nextConfig = {
     };
 
     if (isServer) {
-      config.externals = [...(config.externals || [])];
+      config.externals = [...(config.externals || []), 'three', '@react-three/fiber', '@react-three/drei'];
     }
 
     return config;

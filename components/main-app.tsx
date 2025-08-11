@@ -6,9 +6,11 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { SearchForm } from "@/components/search-form"
 import { MovieCarousel } from "@/components/movie-carousel"
 import { JellyfinLibraryBrowser } from "@/components/jellyfin-library-browser"
-import { Enhanced3DHero } from "@/components/enhanced-3d-hero"
-import { ThreeDHeroSlider } from "@/components/3d-hero-slider"
-import { MobileOptimized3DMap } from "@/components/mobile-optimized-3d-map"
+import {
+  DynamicEnhanced3DHero,
+  Dynamic3DHeroSlider,
+  DynamicMobileOptimized3DMap,
+} from "@/components/dynamic-3d-components"
 import { TicketSystem } from "@/components/tickets/ticket-system"
 import { ForumSystem } from "@/components/forum/forum-system"
 import { UserProfile } from "@/components/profile/user-profile"
@@ -158,13 +160,13 @@ export function MainApp() {
         )
 
       case "3d-hero":
-        return <Enhanced3DHero />
+        return <DynamicEnhanced3DHero />
 
       case "3d-slider":
-        return <ThreeDHeroSlider />
+        return <Dynamic3DHeroSlider />
 
       case "3d-map":
-        return <MobileOptimized3DMap />
+        return <DynamicMobileOptimized3DMap />
 
       case "tickets":
         return <TicketSystem />
