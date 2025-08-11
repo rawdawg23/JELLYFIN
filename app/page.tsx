@@ -19,11 +19,12 @@ import {
   User,
   LogIn,
   LogOut,
+  Menu,
+  X,
   CreditCard,
   Sparkles,
   Zap,
   Globe,
-  ArrowUp,
 } from "lucide-react"
 import { jellyfinAPI } from "@/lib/jellyfin-api"
 import { ThreeDHeroSlider } from "@/components/3d-hero-slider"
@@ -51,30 +52,12 @@ function JellyfinStoreContent() {
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [purchaseData, setPurchaseData] = useState<any>(null)
   const [showLoginModal, setShowLoginModal] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [processingPayment, setProcessingPayment] = useState<string | null>(null)
-  const [showScrollTop, setShowScrollTop] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768)
-    }
-
-    checkMobile()
-    window.addEventListener("resize", checkMobile)
-    return () => window.removeEventListener("resize", checkMobile)
-  }, [])
 
   useEffect(() => {
     loadLibraries()
     loadPayPalScript()
-
-    const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 400)
-    }
-
-    window.addEventListener("scroll", handleScroll)
-    return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
   // Load PayPal SDK
@@ -87,6 +70,30 @@ function JellyfinStoreContent() {
     script.async = true
     document.head.appendChild(script)
   }
+
+  // Close mobile menu when clicking outside or on escape
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMobileMenuOpen(false)
+      }
+    }
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (mobileMenuOpen && !target.closest(".mobile-menu") && !target.closest(".mobile-menu-button")) {
+        setMobileMenuOpen(false)
+      }
+    }
+
+    document.addEventListener("keydown", handleEscape)
+    document.addEventListener("click", handleClickOutside)
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape)
+      document.removeEventListener("click", handleClickOutside)
+    }
+  }, [mobileMenuOpen])
 
   const loadLibraries = async () => {
     try {
@@ -254,10 +261,7 @@ function JellyfinStoreContent() {
       return
     }
     setActiveTab(tab)
-  }
-
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" })
+    setMobileMenuOpen(false)
   }
 
   const navigationItems = [
@@ -323,67 +327,170 @@ function JellyfinStoreContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50 dark:from-slate-900 dark:via-gray-900 dark:to-purple-900">
       <div className="main-content">
-        {/* Header - Simplified for mobile */}
+        {/* Header */}
         <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-purple-100 dark:border-purple-800 sticky top-0 z-50 shadow-lg">
-          <div className="container mx-auto px-4 py-3 sm:py-4">
+          <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               {/* Logo */}
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-xl">
-                  <Play className="h-5 w-5 sm:h-7 sm:w-7 text-white" />
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-xl">
+                  <Play className="h-7 w-7 text-white" />
                 </div>
-                <div>
-                  <h1 className="text-lg sm:text-2xl lg:text-3xl font-black bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 bg-clip-text text-transparent">
+                <div className="hidden sm:block">
+                  <h1 className="text-2xl sm:text-3xl font-black bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 bg-clip-text text-transparent">
                     OG JELLYFIN
                   </h1>
-                  <p className="text-xs sm:text-sm text-muted-foreground font-medium hidden sm:block">
-                    Premium Media Experience
-                  </p>
+                  <p className="text-xs sm:text-sm text-muted-foreground font-medium">Premium Media Experience</p>
+                </div>
+                <div className="sm:hidden">
+                  <h1 className="text-xl font-black bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                    OG JELLYFIN
+                  </h1>
                 </div>
               </div>
 
-              {/* Right side - Auth and Time */}
-              <div className="flex items-center gap-2 sm:gap-4">
-                {!isMobile && <UKTimeDisplay />}
+              {/* Desktop Navigation */}
+              <div className="hidden lg:flex items-center gap-6">
+                <UKTimeDisplay />
                 {isAuthenticated ? (
-                  <div className="flex items-center gap-2 sm:gap-4">
-                    {!isMobile && (
-                      <div className="text-right">
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          Welcome, <span className="text-purple-600 dark:text-purple-400">{user?.username}</span>
-                        </p>
-                        <p className="text-xs text-muted-foreground">{user?.email}</p>
-                      </div>
-                    )}
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        Welcome back, <span className="text-purple-600 dark:text-purple-400">{user?.username}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">{user?.email}</p>
+                    </div>
                     <Button
                       onClick={logout}
                       variant="outline"
                       size="sm"
-                      className="gap-1 sm:gap-2 hover:bg-red-50 hover:border-red-200 hover:text-red-600 bg-transparent text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2"
+                      className="gap-2 hover:bg-red-50 hover:border-red-200 hover:text-red-600 bg-transparent"
                     >
-                      <LogOut className="h-3 w-3 sm:h-4 sm:w-4" />
-                      {!isMobile && "Sign Out"}
+                      <LogOut className="h-4 w-4" />
+                      Sign Out
                     </Button>
                   </div>
                 ) : (
                   <Button
                     onClick={() => setShowLoginModal(true)}
-                    size="sm"
-                    className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg text-xs sm:text-sm px-3 sm:px-4 py-2"
+                    className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg"
                   >
-                    <LogIn className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                    <LogIn className="h-4 w-4 mr-2" />
                     Sign In
                   </Button>
                 )}
               </div>
+
+              {/* Mobile Menu Button */}
+              <div className="lg:hidden flex items-center gap-3">
+                <div className="hidden sm:block">
+                  <UKTimeDisplay />
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="mobile-menu-button p-2 hover:bg-purple-100 dark:hover:bg-purple-900/20"
+                >
+                  {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+                </Button>
+              </div>
             </div>
           </div>
+
+          {/* Mobile Menu Overlay */}
+          {mobileMenuOpen && (
+            <div className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40" style={{ top: "88px" }}>
+              <div className="mobile-menu bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-purple-100 dark:border-purple-800 shadow-2xl">
+                <div className="container mx-auto px-4 py-8 space-y-8">
+                  {/* Mobile Time Display */}
+                  <div className="sm:hidden flex justify-center">
+                    <UKTimeDisplay />
+                  </div>
+
+                  {/* Mobile Navigation */}
+                  <nav className="space-y-3">
+                    {navigationItems.map((item) => {
+                      const isDisabled = item.requiresAuth && !isAuthenticated
+                      const Icon = item.icon
+
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => handleTabChange(item.id)}
+                          disabled={isDisabled}
+                          className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all duration-300 ${
+                            activeTab === item.id
+                              ? "bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-xl scale-105"
+                              : isDisabled
+                                ? "bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed"
+                                : "bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 hover:scale-105"
+                          }`}
+                        >
+                          <Icon className="h-6 w-6" />
+                          <span className="font-semibold text-lg">{item.label}</span>
+                          {isDisabled && (
+                            <Badge className="ml-auto bg-gray-300 text-gray-600 text-xs">Sign In Required</Badge>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </nav>
+
+                  {/* Mobile Auth Section */}
+                  <div className="border-t border-purple-200 dark:border-purple-800 pt-8">
+                    {isAuthenticated ? (
+                      <div className="space-y-6">
+                        <div className="text-center p-6 bg-gradient-to-br from-purple-50 to-indigo-100 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-2xl">
+                          <div className="flex items-center justify-center gap-3 mb-3">
+                            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+                              <User className="h-6 w-6 text-white" />
+                            </div>
+                            <div className="text-left">
+                              <p className="font-bold text-purple-700 dark:text-purple-300">{user?.username}</p>
+                              <p className="text-sm text-purple-600 dark:text-purple-400">{user?.email}</p>
+                            </div>
+                          </div>
+                          <Badge className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white border-0">
+                            <Crown className="h-3 w-3 mr-1" />
+                            Premium Member
+                          </Badge>
+                        </div>
+                        <Button
+                          onClick={() => {
+                            logout()
+                            setMobileMenuOpen(false)
+                          }}
+                          variant="outline"
+                          className="w-full h-12 border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
+                        >
+                          <LogOut className="h-5 w-5 mr-2" />
+                          Sign Out
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        onClick={() => {
+                          setShowLoginModal(true)
+                          setMobileMenuOpen(false)
+                        }}
+                        className="w-full h-12 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg text-lg"
+                      >
+                        <LogIn className="h-5 w-5 mr-2" />
+                        Sign In to Access All Features
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </header>
 
-        <main className="container mx-auto px-4 py-4 sm:py-6">
-          <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6 sm:space-y-8">
-            {/* Navigation - Only show on desktop */}
-            {!isMobile && (
+        <main className="container mx-auto px-4 py-6">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-8">
+            {/* Desktop Tab Navigation */}
+            <div className="hidden lg:block">
               <div className="bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl rounded-2xl p-2 border border-purple-100 dark:border-purple-800 shadow-xl">
                 <div className="grid grid-cols-7 gap-2">
                   {navigationItems.map((item) => {
@@ -410,13 +517,13 @@ function JellyfinStoreContent() {
                   })}
                 </div>
               </div>
-            )}
+            </div>
 
-            {/* Mobile Quick Actions - Floating buttons */}
-            {isMobile && (
-              <div className="fixed bottom-4 left-4 right-4 z-40">
-                <div className="flex justify-center gap-2 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-2xl p-3 border border-purple-100 dark:border-purple-800 shadow-2xl">
-                  {navigationItems.slice(0, 4).map((item) => {
+            {/* Mobile Tab Navigation */}
+            <div className="lg:hidden">
+              <div className="bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl rounded-2xl p-2 border border-purple-100 dark:border-purple-800 shadow-xl overflow-x-auto">
+                <div className="flex gap-2 min-w-max">
+                  {navigationItems.map((item) => {
                     const Icon = item.icon
                     const isDisabled = item.requiresAuth && !isAuthenticated
 
@@ -425,39 +532,42 @@ function JellyfinStoreContent() {
                         key={item.id}
                         onClick={() => handleTabChange(item.id)}
                         disabled={isDisabled}
-                        className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-300 min-w-[60px] ${
+                        className={`flex-shrink-0 flex items-center gap-2 px-4 py-3 rounded-xl transition-all duration-300 ${
                           activeTab === item.id
-                            ? "bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg scale-105"
+                            ? "bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg"
                             : isDisabled
                               ? "text-gray-400 cursor-not-allowed"
                               : "text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/20"
                         }`}
                       >
-                        <Icon className="h-5 w-5" />
-                        <span className="text-xs font-medium">{item.shortLabel}</span>
+                        <Icon className="h-4 w-4" />
+                        <span className="text-sm font-medium whitespace-nowrap">
+                          <span className="hidden sm:inline">{item.label}</span>
+                          <span className="sm:hidden">{item.shortLabel}</span>
+                        </span>
                       </button>
                     )
                   })}
                 </div>
               </div>
-            )}
+            </div>
 
             <TabsContent value="home" className="space-y-0">
               <ThreeDHeroSlider />
 
               {/* Features Section */}
-              <div className="py-12 sm:py-16 lg:py-20 bg-gradient-to-br from-white via-purple-50 to-indigo-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-indigo-900/20">
+              <div className="py-20 bg-gradient-to-br from-white via-purple-50 to-indigo-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-indigo-900/20">
                 <div className="container mx-auto px-4">
-                  <div className="text-center space-y-4 sm:space-y-6 mb-12 sm:mb-16">
-                    <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-6xl font-black bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 bg-clip-text text-transparent">
+                  <div className="text-center space-y-6 mb-16">
+                    <h2 className="text-4xl md:text-6xl font-black bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 bg-clip-text text-transparent">
                       Why Choose OG JELLYFIN?
                     </h2>
-                    <p className="text-base sm:text-lg lg:text-xl text-muted-foreground max-w-3xl mx-auto">
+                    <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
                       Experience the ultimate media streaming platform with cutting-edge features and premium quality
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {[
                       {
                         icon: Shield,
@@ -506,18 +616,14 @@ function JellyfinStoreContent() {
                         key={index}
                         className={`border-0 bg-gradient-to-br ${feature.bgGradient} shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 group`}
                       >
-                        <CardContent className="p-4 sm:p-6 lg:p-8 text-center space-y-3 sm:space-y-4">
+                        <CardContent className="p-8 text-center space-y-4">
                           <div
-                            className={`w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 mx-auto bg-gradient-to-br ${feature.gradient} rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}
+                            className={`w-16 h-16 mx-auto bg-gradient-to-br ${feature.gradient} rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}
                           >
-                            <feature.icon className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 text-white" />
+                            <feature.icon className="h-8 w-8 text-white" />
                           </div>
-                          <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
-                            {feature.title}
-                          </h3>
-                          <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-                            {feature.description}
-                          </p>
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">{feature.title}</h3>
+                          <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
                         </CardContent>
                       </Card>
                     ))}
@@ -526,38 +632,38 @@ function JellyfinStoreContent() {
               </div>
             </TabsContent>
 
-            <TabsContent value="libraries" className="space-y-6 sm:space-y-8 pb-20 sm:pb-8">
-              <div className="text-center space-y-4 sm:space-y-6">
-                <h2 className="text-2xl sm:text-3xl md:text-5xl font-black bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+            <TabsContent value="libraries" className="space-y-8">
+              <div className="text-center space-y-6">
+                <h2 className="text-3xl md:text-5xl font-black bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
                   Discover Amazing Content
                 </h2>
-                <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
+                <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
                   Stream thousands of movies, TV shows, music, and more with our premium Jellyfin experience
                 </p>
               </div>
 
               <div className="relative max-w-3xl mx-auto">
-                <Search className="absolute left-4 sm:left-6 top-1/2 transform -translate-y-1/2 h-5 w-5 sm:h-6 sm:w-6 text-purple-400" />
+                <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 h-6 w-6 text-purple-400" />
                 <Input
                   placeholder="Search for movies, TV shows, music..."
                   value={searchQuery}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="pl-12 sm:pl-14 h-12 sm:h-16 text-base sm:text-lg bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border-purple-200 dark:border-purple-800 focus:border-purple-500 dark:focus:border-purple-400 rounded-xl sm:rounded-2xl shadow-xl"
+                  className="pl-14 h-16 text-lg bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border-purple-200 dark:border-purple-800 focus:border-purple-500 dark:focus:border-purple-400 rounded-2xl shadow-xl"
                 />
               </div>
 
               {searchQuery && (
-                <div className="space-y-4 sm:space-y-6">
-                  <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
+                <div className="space-y-6">
+                  <h3 className="text-2xl md:text-3xl font-bold text-foreground">
                     Search Results {searchResults.length > 0 && `(${searchResults.length})`}
                   </h3>
                   {isSearching ? (
-                    <div className="text-center py-12 sm:py-16">
-                      <div className="animate-spin w-8 h-8 sm:w-12 sm:h-12 border-4 border-purple-200 border-t-purple-600 rounded-full mx-auto mb-4"></div>
-                      <p className="text-muted-foreground text-base sm:text-lg">Searching...</p>
+                    <div className="text-center py-16">
+                      <div className="animate-spin w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full mx-auto mb-4"></div>
+                      <p className="text-muted-foreground text-lg">Searching...</p>
                     </div>
                   ) : searchResults.length > 0 ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
                       {searchResults.map((item) => (
                         <Card
                           key={item.Id}
@@ -581,39 +687,37 @@ function JellyfinStoreContent() {
                               }}
                             />
                             <div className="hidden w-full h-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center">
-                              <div className="text-center text-white p-2 sm:p-4">
-                                <Play className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2" />
-                                <p className="text-xs sm:text-sm font-medium line-clamp-2">{item.Name}</p>
+                              <div className="text-center text-white p-4">
+                                <Play className="h-8 w-8 mx-auto mb-2" />
+                                <p className="text-sm font-medium line-clamp-2">{item.Name}</p>
                               </div>
                             </div>
                             {item.ProductionYear && (
-                              <Badge className="absolute top-1 sm:top-2 right-1 sm:right-2 bg-black/70 text-white border-0 text-xs backdrop-blur-sm">
+                              <Badge className="absolute top-2 right-2 bg-black/70 text-white border-0 text-xs backdrop-blur-sm">
                                 {item.ProductionYear}
                               </Badge>
                             )}
                           </div>
-                          <CardContent className="p-2 sm:p-4">
-                            <h4 className="font-semibold text-xs sm:text-sm line-clamp-2 text-foreground mb-1">
-                              {item.Name}
-                            </h4>
+                          <CardContent className="p-4">
+                            <h4 className="font-semibold text-sm line-clamp-2 text-foreground mb-1">{item.Name}</h4>
                             <p className="text-xs text-muted-foreground capitalize">{item.Type}</p>
                           </CardContent>
                         </Card>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-12 sm:py-16">
-                      <Search className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground text-base sm:text-lg">No results found for "{searchQuery}"</p>
+                    <div className="text-center py-16">
+                      <Search className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground text-lg">No results found for "{searchQuery}"</p>
                     </div>
                   )}
                 </div>
               )}
 
               {!searchQuery && (
-                <div className="space-y-6 sm:space-y-8">
-                  <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">Browse Libraries</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+                <div className="space-y-8">
+                  <h3 className="text-2xl md:text-3xl font-bold text-foreground">Browse Libraries</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {libraries.map((library) => (
                       <Card
                         key={library.Id}
@@ -622,28 +726,26 @@ function JellyfinStoreContent() {
                         <div className="aspect-video relative overflow-hidden">
                           <div className="w-full h-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center">
                             <div className="text-center text-white">
-                              <Play className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 mx-auto mb-2 sm:mb-4 group-hover:scale-110 transition-transform duration-300" />
-                              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold mb-1 sm:mb-2">{library.Name}</h3>
-                              <p className="text-purple-100 capitalize text-sm sm:text-base lg:text-lg">
+                              <Play className="h-12 w-12 mx-auto mb-4 group-hover:scale-110 transition-transform duration-300" />
+                              <h3 className="text-2xl font-bold mb-2">{library.Name}</h3>
+                              <p className="text-purple-100 capitalize text-lg">
                                 {library.CollectionType || "Mixed Content"}
                               </p>
                             </div>
                           </div>
                           <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-300" />
                         </div>
-                        <CardContent className="p-4 sm:p-6">
+                        <CardContent className="p-6">
                           <div className="flex items-center justify-between">
                             <div>
-                              <h4 className="font-bold text-base sm:text-lg text-foreground">{library.Name}</h4>
-                              <p className="text-sm sm:text-base text-muted-foreground capitalize">
+                              <h4 className="font-bold text-lg text-foreground">{library.Name}</h4>
+                              <p className="text-muted-foreground capitalize">
                                 {library.CollectionType || "Mixed Content"}
                               </p>
                             </div>
                             <div className="text-right">
-                              <div className="text-2xl sm:text-3xl font-black text-purple-600">
-                                {library.ItemCount || 0}
-                              </div>
-                              <div className="text-xs sm:text-sm text-muted-foreground">items</div>
+                              <div className="text-3xl font-black text-purple-600">{library.ItemCount || 0}</div>
+                              <div className="text-sm text-muted-foreground">items</div>
                             </div>
                           </div>
                         </CardContent>
@@ -654,12 +756,12 @@ function JellyfinStoreContent() {
               )}
             </TabsContent>
 
-            <TabsContent value="plans" className="space-y-6 sm:space-y-8 pb-20 sm:pb-8">
-              <div className="text-center space-y-4 sm:space-y-6">
-                <h2 className="text-2xl sm:text-3xl md:text-5xl font-black bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+            <TabsContent value="plans" className="space-y-8">
+              <div className="text-center space-y-6">
+                <h2 className="text-3xl md:text-5xl font-black bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
                   Choose Your Plan
                 </h2>
-                <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
+                <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
                   Select the perfect plan for your streaming needs. All plans include access to our premium Jellyfin
                   server.
                 </p>
@@ -669,52 +771,46 @@ function JellyfinStoreContent() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 max-w-7xl mx-auto">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
                 {subscriptionPlans.map((plan) => (
                   <Card
                     key={plan.name}
                     className={`border-0 bg-gradient-to-br ${plan.bgGradient} shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 relative overflow-hidden ${
-                      plan.popular ? "ring-2 ring-purple-500 lg:scale-105" : ""
+                      plan.popular ? "ring-2 ring-purple-500 scale-105" : ""
                     }`}
                   >
                     {plan.popular && (
                       <div
-                        className={`absolute top-0 left-0 right-0 bg-gradient-to-r ${plan.gradient} text-white text-center py-2 sm:py-3 text-xs sm:text-sm font-bold shadow-lg`}
+                        className={`absolute top-0 left-0 right-0 bg-gradient-to-r ${plan.gradient} text-white text-center py-3 text-sm font-bold shadow-lg`}
                       >
                         ⭐ MOST POPULAR ⭐
                       </div>
                     )}
-                    <CardHeader className={`text-center ${plan.popular ? "pt-12 sm:pt-16" : "pt-6 sm:pt-8"} pb-4`}>
+                    <CardHeader className={`text-center ${plan.popular ? "pt-16" : "pt-8"} pb-4`}>
                       <div
-                        className={`w-16 h-16 sm:w-20 sm:h-20 mx-auto bg-gradient-to-br ${plan.gradient} rounded-2xl sm:rounded-3xl flex items-center justify-center shadow-xl mb-4 sm:mb-6`}
+                        className={`w-20 h-20 mx-auto bg-gradient-to-br ${plan.gradient} rounded-3xl flex items-center justify-center shadow-xl mb-6`}
                       >
-                        <Crown className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
+                        <Crown className="h-10 w-10 text-white" />
                       </div>
-                      <CardTitle className="text-xl sm:text-2xl md:text-3xl font-black text-gray-900 dark:text-gray-100">
+                      <CardTitle className="text-2xl md:text-3xl font-black text-gray-900 dark:text-gray-100">
                         {plan.name}
                       </CardTitle>
-                      <div className="space-y-1 sm:space-y-2">
-                        <div className="text-3xl sm:text-4xl md:text-5xl font-black text-purple-600">
+                      <div className="space-y-2">
+                        <div className="text-4xl md:text-5xl font-black text-purple-600">
                           £{plan.price}
-                          <span className="text-base sm:text-lg text-muted-foreground">/month</span>
+                          <span className="text-lg text-muted-foreground">/month</span>
                         </div>
-                        <CardDescription className="text-sm sm:text-base">
-                          Billed monthly in {plan.currency}
-                        </CardDescription>
+                        <CardDescription className="text-base">Billed monthly in {plan.currency}</CardDescription>
                       </div>
                     </CardHeader>
-                    <CardContent className="space-y-6 sm:space-y-8 p-4 sm:p-6 lg:p-8">
-                      <ul className="space-y-3 sm:space-y-4">
+                    <CardContent className="space-y-8 p-8">
+                      <ul className="space-y-4">
                         {plan.features.map((feature, index) => (
-                          <li key={index} className="flex items-center gap-3 sm:gap-4">
+                          <li key={index} className="flex items-center gap-4">
                             <div
-                              className={`w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-r ${plan.gradient} rounded-full flex items-center justify-center flex-shrink-0 shadow-lg`}
+                              className={`w-6 h-6 bg-gradient-to-r ${plan.gradient} rounded-full flex items-center justify-center flex-shrink-0 shadow-lg`}
                             >
-                              <svg
-                                className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
+                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                                 <path
                                   fillRule="evenodd"
                                   d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -722,25 +818,25 @@ function JellyfinStoreContent() {
                                 />
                               </svg>
                             </div>
-                            <span className="text-foreground font-medium text-sm sm:text-base">{feature}</span>
+                            <span className="text-foreground font-medium">{feature}</span>
                           </li>
                         ))}
                       </ul>
                       <Button
                         onClick={() => handlePayPalPayment(plan.name.toLowerCase(), plan.price)}
                         disabled={processingPayment === plan.name.toLowerCase()}
-                        className={`w-full h-12 sm:h-14 bg-gradient-to-r ${plan.gradient} hover:shadow-2xl text-white border-0 font-bold text-sm sm:text-lg transition-all duration-300 hover:scale-105 ${
+                        className={`w-full h-14 bg-gradient-to-r ${plan.gradient} hover:shadow-2xl text-white border-0 font-bold text-lg transition-all duration-300 hover:scale-105 ${
                           processingPayment === plan.name.toLowerCase() ? "opacity-50 cursor-not-allowed" : ""
                         }`}
                       >
                         {processingPayment === plan.name.toLowerCase() ? (
                           <>
-                            <div className="animate-spin w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full mr-2 sm:mr-3" />
+                            <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-3" />
                             Processing...
                           </>
                         ) : (
                           <>
-                            <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3" />
+                            <CreditCard className="h-5 w-5 mr-3" />
                             Pay with PayPal - £{plan.price}
                           </>
                         )}
@@ -753,15 +849,13 @@ function JellyfinStoreContent() {
                 ))}
               </div>
 
-              <div className="text-center space-y-4 sm:space-y-6 max-w-3xl mx-auto">
-                <div className="p-6 sm:p-8 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl sm:rounded-3xl border border-blue-200 dark:border-blue-800 shadow-xl">
-                  <div className="flex items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                    <CreditCard className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
-                    <span className="font-bold text-lg sm:text-xl text-blue-800 dark:text-blue-200">
-                      Secure Payment
-                    </span>
+              <div className="text-center space-y-6 max-w-3xl mx-auto">
+                <div className="p-8 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-3xl border border-blue-200 dark:border-blue-800 shadow-xl">
+                  <div className="flex items-center justify-center gap-3 mb-4">
+                    <CreditCard className="h-8 w-8 text-blue-600" />
+                    <span className="font-bold text-xl text-blue-800 dark:text-blue-200">Secure Payment</span>
                   </div>
-                  <p className="text-sm sm:text-base text-blue-700 dark:text-blue-300 leading-relaxed">
+                  <p className="text-blue-700 dark:text-blue-300 leading-relaxed">
                     All payments are processed securely through PayPal. Your Jellyfin account will be created
                     automatically after successful payment with instant access to your chosen plan.
                   </p>
@@ -769,35 +863,24 @@ function JellyfinStoreContent() {
               </div>
             </TabsContent>
 
-            <TabsContent value="profile" className="pb-20 sm:pb-8">
+            <TabsContent value="profile">
               <UserProfile />
             </TabsContent>
 
-            <TabsContent value="tickets" className="pb-20 sm:pb-8">
+            <TabsContent value="tickets">
               <TicketSystem />
             </TabsContent>
 
-            <TabsContent value="messages" className="pb-20 sm:pb-8">
+            <TabsContent value="messages">
               <MessagingSystem />
             </TabsContent>
 
-            <TabsContent value="forum" className="pb-20 sm:pb-8">
+            <TabsContent value="forum">
               <ForumSystem />
             </TabsContent>
           </Tabs>
         </main>
       </div>
-
-      {/* Scroll to Top Button */}
-      {showScrollTop && (
-        <Button
-          onClick={scrollToTop}
-          className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50 w-12 h-12 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-110"
-          size="icon"
-        >
-          <ArrowUp className="h-5 w-5" />
-        </Button>
-      )}
 
       <SubscriptionSuccessModal
         isOpen={showSuccessModal}
