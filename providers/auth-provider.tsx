@@ -131,14 +131,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Check for stored user session
-    if (typeof window !== "undefined") {
-      const storedUser = localStorage.getItem("jellyfin-store-user")
-      if (storedUser) {
-        try {
+    if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+      try {
+        const storedUser = localStorage.getItem("jellyfin-store-user")
+        if (storedUser) {
           const userData = JSON.parse(storedUser)
           setUser(userData)
-        } catch (error) {
-          console.error("Error parsing stored user data:", error)
+        }
+      } catch (error) {
+        console.error("Error parsing stored user data:", error)
+        if (typeof localStorage !== "undefined") {
           localStorage.removeItem("jellyfin-store-user")
         }
       }
@@ -162,7 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setUser(userWithUpdatedLogin)
-      if (typeof window !== "undefined") {
+      if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
         localStorage.setItem("jellyfin-store-user", JSON.stringify(userWithUpdatedLogin))
       }
       setIsLoading(false)
@@ -175,7 +177,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     setUser(null)
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
       localStorage.removeItem("jellyfin-store-user")
     }
   }
@@ -221,7 +223,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     mockUsers.push({ ...newUser, password: userData.password })
 
     setUser(newUser)
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
       localStorage.setItem("jellyfin-store-user", JSON.stringify(newUser))
     }
     setIsLoading(false)
@@ -238,7 +240,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const updatedUser = { ...user, ...updates }
     setUser(updatedUser)
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
       localStorage.setItem("jellyfin-store-user", JSON.stringify(updatedUser))
     }
 
