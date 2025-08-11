@@ -49,10 +49,11 @@ const nextConfig = {
       use: ['raw-loader'],
     });
 
+    // Fixed ES module compatibility by replacing require with import.meta.url
     if (!isServer) {
       config.resolve.alias = {
         ...config.resolve.alias,
-        '@': require('path').resolve(__dirname),
+        '@': new URL('.', import.meta.url).pathname,
       };
     }
 
