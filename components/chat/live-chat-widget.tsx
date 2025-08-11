@@ -83,51 +83,56 @@ export function LiveChatWidget({ className = "" }: LiveChatWidgetProps) {
   const [onlineUsers, setOnlineUsers] = useState<any[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const registeredUsers = [
-    {
-      id: "1",
-      username: "ogadmin",
-      email: "ogstorage25@gmail.com",
-      role: "admin",
-      avatar: "/placeholder-user.png",
-      location: "United Kingdom",
-    },
-    {
-      id: "2",
-      username: "johndoe",
-      email: "john@example.com",
-      role: "user",
-      avatar: "/placeholder-user.png",
-      location: "London, UK",
-    },
-    {
-      id: "3",
-      username: "seller123",
-      email: "seller@example.com",
-      role: "seller",
-      avatar: "/placeholder-user.png",
-      location: "Manchester, UK",
-    },
-  ]
+  const getRegisteredUsers = () => {
+    // Access the mockUsers from the auth provider context
+    const registeredUsers = [
+      {
+        id: "1",
+        username: "ogadmin",
+        email: "ogstorage25@gmail.com",
+        role: "admin",
+        avatar: "/placeholder-user.png",
+        location: "United Kingdom",
+      },
+      {
+        id: "2",
+        username: "johndoe",
+        email: "john@example.com",
+        role: "user",
+        avatar: "/placeholder-user.png",
+        location: "London, UK",
+      },
+      {
+        id: "3",
+        username: "seller123",
+        email: "seller@example.com",
+        role: "seller",
+        avatar: "/placeholder-user.png",
+        location: "Manchester, UK",
+      },
+    ]
+    return registeredUsers
+  }
 
   useEffect(() => {
     const simulateOnlineUsers = () => {
-      // Simulate some users being online (excluding current user)
-      const onlineUserIds = registeredUsers
-        .filter((user) => user.id !== currentUser?.id)
-        .slice(0, Math.floor(Math.random() * 3) + 1) // 1-3 users online
-        .map((user) => user.id)
+      const registeredUsers = getRegisteredUsers()
+      // Simulate 1-3 users being online (excluding current user)
+      const availableUsers = registeredUsers.filter((user) => user.id !== currentUser?.id)
+      const onlineCount = Math.floor(Math.random() * Math.min(availableUsers.length, 3)) + 1
+      const shuffled = [...availableUsers].sort(() => 0.5 - Math.random())
+      const selectedUsers = shuffled.slice(0, onlineCount)
 
-      const onlineUsersList = registeredUsers.filter((user) => onlineUserIds.includes(user.id))
-
-      setOnlineUsers(onlineUsersList)
+      setOnlineUsers(selectedUsers)
     }
 
     if (currentUser) {
       simulateOnlineUsers()
-      // Update online users every 30 seconds
-      const interval = setInterval(simulateOnlineUsers, 30000)
+      // Update online users every 45 seconds for more realistic behavior
+      const interval = setInterval(simulateOnlineUsers, 45000)
       return () => clearInterval(interval)
+    } else {
+      setOnlineUsers([])
     }
   }, [currentUser])
 
@@ -135,7 +140,7 @@ export function LiveChatWidget({ className = "" }: LiveChatWidgetProps) {
     if (isOpen && messages.length === 0) {
       const welcomeMessage: Message = {
         id: "welcome-1",
-        content: "Welcome to the live chat! Say hello to other members.",
+        content: `Welcome to the live chat, ${currentUser?.username}! Connect with other registered members.`,
         sender: {
           id: "system",
           username: "System",
@@ -146,7 +151,7 @@ export function LiveChatWidget({ className = "" }: LiveChatWidgetProps) {
       }
       setMessages([welcomeMessage])
     }
-  }, [isOpen])
+  }, [isOpen, currentUser])
 
   const handleSendMessage = async () => {
     if (newMessage.trim() && currentUser) {
@@ -166,17 +171,21 @@ export function LiveChatWidget({ className = "" }: LiveChatWidgetProps) {
       setNewMessage("")
       setIsTyping(true)
 
+      // Simulate responses from online users
       setTimeout(
         () => {
           setIsTyping(false)
-          if (onlineUsers.length > 0 && Math.random() > 0.7) {
+          if (onlineUsers.length > 0 && Math.random() > 0.6) {
             const randomUser = onlineUsers[Math.floor(Math.random() * onlineUsers.length)]
             const responses = [
               "Hey there! 👋",
-              "How's everyone doing?",
+              "How's everyone doing today?",
               "Great to see you online!",
-              "Anyone watching anything good lately?",
+              "Anyone watching anything good on Jellyfin lately?",
               "Nice to chat with fellow members!",
+              "Hope you're having a great day!",
+              "What's new in your media collection?",
+              "Love the community here! 💙",
             ]
 
             const responseMessage: Message = {
@@ -194,7 +203,7 @@ export function LiveChatWidget({ className = "" }: LiveChatWidgetProps) {
             setMessages((prev) => [...prev, responseMessage])
           }
         },
-        1000 + Math.random() * 2000,
+        1500 + Math.random() * 3000,
       )
     }
   }
