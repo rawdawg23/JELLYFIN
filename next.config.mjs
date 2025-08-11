@@ -23,6 +23,9 @@ const nextConfig = {
     ],
     unoptimized: true,
   },
+  experimental: {
+    esmExternals: 'loose',
+  },
   webpack: (config, { isServer }) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
@@ -45,6 +48,13 @@ const nextConfig = {
       test: /\.(glsl|vs|fs|vert|frag)$/,
       use: ['raw-loader'],
     });
+
+    if (!isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        '@': require('path').resolve(__dirname),
+      };
+    }
 
     return config;
   },
