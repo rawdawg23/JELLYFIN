@@ -22,6 +22,7 @@ import {
   LogOut,
   Menu,
   X,
+  CreditCard,
 } from "lucide-react"
 import { jellyfinAPI } from "@/lib/jellyfin-api"
 import { MovieCarousel } from "@/components/movie-carousel"
@@ -35,6 +36,10 @@ import { LoginModal } from "@/components/auth/login-modal"
 import { useAuth } from "@/lib/auth-context"
 import { AuthProvider } from "@/lib/auth-context"
 
+// PayPal configuration
+const PAYPAL_CLIENT_ID = "sb" // You'll need to replace this with your actual PayPal client ID
+const PAYPAL_MERCHANT_EMAIL = "ogstorage25@gmail.com"
+
 function JellyfinStoreContent() {
   const { user, isAuthenticated, logout } = useAuth()
   const [libraries, setLibraries] = useState<any[]>([])
@@ -46,10 +51,23 @@ function JellyfinStoreContent() {
   const [purchaseData, setPurchaseData] = useState<any>(null)
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [processingPayment, setProcessingPayment] = useState<string | null>(null)
 
   useEffect(() => {
     loadLibraries()
+    loadPayPalScript()
   }, [])
+
+  // Load PayPal SDK
+  const loadPayPalScript = () => {
+    if (document.getElementById("paypal-sdk")) return
+
+    const script = document.createElement("script")
+    script.id = "paypal-sdk"
+    script.src = `https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=GBP&intent=capture`
+    script.async = true
+    document.head.appendChild(script)
+  }
 
   // Close mobile menu when clicking outside or on escape
   useEffect(() => {
@@ -103,31 +121,135 @@ function JellyfinStoreContent() {
     }
   }
 
-  const handlePurchase = async (planType: string, price: number) => {
+  const handlePayPalPayment = async (planType: string, price: number) => {
     if (!isAuthenticated) {
       setShowLoginModal(true)
       return
     }
 
-    // Generate user credentials
-    const credentials = jellyfinAPI.generateCredentials(planType)
+    setProcessingPayment(planType)
 
-    // Create user account
-    const userResult = await jellyfinAPI.createUser(credentials, planType)
+    // Check if PayPal SDK is loaded
+    if (typeof window.paypal === "undefined") {
+      alert("PayPal is loading, please try again in a moment.")
+      setProcessingPayment(null)
+      return
+    }
 
-    if (userResult.success && userResult.userId) {
-      // Assign libraries based on plan
-      await jellyfinAPI.assignLibrariesToUser(userResult.userId, planType)
+    try {
+      // Create PayPal payment
+      const paypalButtonContainer = document.createElement("div")
+      paypalButtonContainer.id = `paypal-button-${planType}`
+      document.body.appendChild(paypalButtonContainer)
 
-      setPurchaseData({
-        planType,
-        price,
-        credentials,
-        userId: userResult.userId,
-      })
-      setShowSuccessModal(true)
-    } else {
-      alert("Failed to create user account: " + userResult.error)
+      window.paypal
+        .Buttons({
+          createOrder: (data: any, actions: any) => {
+            return actions.order.create({
+              purchase_units: [
+                {
+                  amount: {
+                    value: price.toString(),
+                    currency_code: "GBP",
+                  },
+                  description: `OG JELLYFIN ${planType.charAt(0).toUpperCase() + planType.slice(1)} Plan`,
+                  payee: {
+                    email_address: PAYPAL_MERCHANT_EMAIL,
+                  },
+                },
+              ],
+              application_context: {
+                brand_name: "OG JELLYFIN",
+                landing_page: "BILLING",
+                user_action: "PAY_NOW",
+              },
+            })
+          },
+          onApprove: async (data: any, actions: any) => {
+            try {
+              const order = await actions.order.capture()
+
+              if (order.status === "COMPLETED") {
+                // Payment successful, create Jellyfin account
+                await createJellyfinAccount(planType, price, order)
+              } else {
+                throw new Error("Payment not completed")
+              }
+            } catch (error) {
+              console.error("Payment capture failed:", error)
+              alert("Payment processing failed. Please try again.")
+            } finally {
+              setProcessingPayment(null)
+              document.body.removeChild(paypalButtonContainer)
+            }
+          },
+          onError: (err: any) => {
+            console.error("PayPal error:", err)
+            alert("Payment failed. Please try again.")
+            setProcessingPayment(null)
+            document.body.removeChild(paypalButtonContainer)
+          },
+          onCancel: () => {
+            setProcessingPayment(null)
+            document.body.removeChild(paypalButtonContainer)
+          },
+        })
+        .render(`#paypal-button-${planType}`)
+
+      // Trigger the PayPal button click
+      setTimeout(() => {
+        const paypalButton = paypalButtonContainer.querySelector('div[role="button"]') as HTMLElement
+        if (paypalButton) {
+          paypalButton.click()
+        }
+      }, 100)
+    } catch (error) {
+      console.error("PayPal initialization failed:", error)
+      alert("Payment system unavailable. Please try again later.")
+      setProcessingPayment(null)
+    }
+  }
+
+  const createJellyfinAccount = async (planType: string, price: number, paymentOrder: any) => {
+    try {
+      // Generate user credentials
+      const credentials = jellyfinAPI.generateCredentials(planType)
+
+      // Create user account
+      const userResult = await jellyfinAPI.createUser(credentials, planType)
+
+      if (userResult.success && userResult.userId) {
+        // Assign libraries based on plan
+        await jellyfinAPI.assignLibrariesToUser(userResult.userId, planType)
+
+        // Store payment information
+        const purchaseData = {
+          planType,
+          price,
+          credentials,
+          userId: userResult.userId,
+          paymentId: paymentOrder.id,
+          paymentStatus: paymentOrder.status,
+          paymentDate: new Date().toISOString(),
+          payerEmail: paymentOrder.payer?.email_address,
+        }
+
+        setPurchaseData(purchaseData)
+        setShowSuccessModal(true)
+
+        // Log successful purchase
+        console.log("Account created successfully:", {
+          planType,
+          userId: userResult.userId,
+          paymentId: paymentOrder.id,
+          username: credentials.username,
+        })
+      } else {
+        throw new Error(userResult.error || "Failed to create account")
+      }
+    } catch (error) {
+      console.error("Account creation failed:", error)
+      alert("Account creation failed after payment. Please contact support with your payment ID: " + paymentOrder.id)
     }
   }
 
@@ -527,6 +649,10 @@ function JellyfinStoreContent() {
                   Select the perfect plan for your streaming needs. All plans include access to our premium Jellyfin
                   server.
                 </p>
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Shield className="h-4 w-4" />
+                  <span>Secure PayPal payment processing</span>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto px-4">
@@ -572,12 +698,27 @@ function JellyfinStoreContent() {
                         ))}
                       </ul>
                       <Button
-                        onClick={() => handlePurchase(plan.name.toLowerCase(), plan.price)}
-                        className={`w-full ios-button text-white border-0 ${plan.popular ? "shadow-lg" : ""}`}
+                        onClick={() => handlePayPalPayment(plan.name.toLowerCase(), plan.price)}
+                        disabled={processingPayment === plan.name.toLowerCase()}
+                        className={`w-full ios-button text-white border-0 ${plan.popular ? "shadow-lg" : ""} ${
+                          processingPayment === plan.name.toLowerCase() ? "opacity-50 cursor-not-allowed" : ""
+                        }`}
                       >
-                        <Crown className="h-4 w-4 mr-2" />
-                        Choose {plan.name}
+                        {processingPayment === plan.name.toLowerCase() ? (
+                          <>
+                            <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard className="h-4 w-4 mr-2" />
+                            Pay with PayPal - £{plan.price}
+                          </>
+                        )}
                       </Button>
+                      <div className="text-center text-xs text-muted-foreground">
+                        Account created instantly after payment
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -607,6 +748,19 @@ function JellyfinStoreContent() {
                     <h4 className="font-semibold text-foreground">Premium Quality</h4>
                     <p className="text-sm text-muted-foreground">4K streaming with premium features</p>
                   </div>
+                </div>
+              </div>
+
+              <div className="text-center space-y-2 max-w-md mx-auto px-4">
+                <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <CreditCard className="h-5 w-5 text-blue-600" />
+                    <span className="font-medium text-blue-800">Secure Payment</span>
+                  </div>
+                  <p className="text-sm text-blue-700">
+                    All payments are processed securely through PayPal. Your Jellyfin account will be created
+                    automatically after successful payment.
+                  </p>
                 </div>
               </div>
             </TabsContent>
