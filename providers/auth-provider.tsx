@@ -2,12 +2,17 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
-import { jellyfinAPI } from "./jellyfin-api"
+import { jellyfinAPI } from "@/lib/jellyfin-api"
+import { embyAPI } from "@/lib/emby-api"
 
 interface User {
   id: string
   username: string
   email: string
+  displayName?: string
+  bio?: string
+  location?: string
+  website?: string
   avatar?: string
   role: "user" | "admin" | "moderator"
   joinDate: string
@@ -25,8 +30,12 @@ interface User {
   embyConnect?: {
     connected: boolean
     username?: string
-    email?: string
+    userId?: string
+    serverId?: string
+    serverName?: string
     connectedAt?: string
+    accessToken?: string
+    libraries?: any[]
   }
 }
 
@@ -67,6 +76,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           id: "admin-001",
           username: "ogadmin",
           email: "admin@ogjellyfin.com",
+          displayName: "OG Admin",
+          bio: "Administrator of OG Jellyfin platform",
+          location: "Server Room",
+          website: "https://ogjellyfin.com",
           avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=admin`,
           role: "admin",
           joinDate: "2024-01-01T00:00:00Z",
@@ -85,6 +98,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         id: "user-" + Date.now(),
         username,
         email: `${username.toLowerCase()}@example.com`,
+        displayName: username,
+        bio: `Hello, I'm ${username}!`,
+        location: "",
+        website: "",
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
         role: "user",
         joinDate: new Date().toISOString(),
@@ -108,6 +125,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         id: "user-" + Date.now(),
         username,
         email,
+        displayName: username,
+        bio: `Hello, I'm ${username}!`,
+        location: "",
+        website: "",
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
         role: "user",
         joinDate: new Date().toISOString(),
@@ -128,6 +149,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null)
     setIsAuthenticated(false)
     localStorage.removeItem("jellyfin-user")
+    localStorage.removeItem("emby-connection")
+    embyAPI.logout()
   }
 
   const updateProfile = (updates: Partial<User>) => {
@@ -147,9 +170,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const jellyfinQuickConnectData = {
           connected: true,
           username: user?.username || "JellyfinUser",
-          userId: linkResult.userId || "jellyfin-" + Date.now(),
-          serverId: linkResult.serverId || "og-jellyfin-server",
-          serverName: linkResult.serverName || "OG JELLYFIN Server",
+          userId: "jellyfin-" + Date.now(),
+          serverId: "og-jellyfin-server",
+          serverName: "OG JELLYFIN Server",
           connectedAt: new Date().toISOString(),
           quickConnectCode: code,
         }
@@ -193,33 +216,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const connectEmby = async (username: string, password: string): Promise<boolean> => {
     try {
-      // Mock Emby Connect authentication
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      // Use real Emby API
+      const result = await embyAPI.authenticateUser(username, password)
 
-      const embyConnectData = {
-        connected: true,
-        username,
-        email: `${username}@emby.media`,
-        connectedAt: new Date().toISOString(),
+      if (result.success && result.user && result.accessToken) {
+        // Get user libraries
+        const libraries = await embyAPI.getLibraries(result.user.Id)
+
+        const embyConnectData = {
+          connected: true,
+          username: result.user.Name,
+          userId: result.user.Id,
+          serverId: "og-emby-server",
+          serverName: "OG Emby Server",
+          connectedAt: new Date().toISOString(),
+          accessToken: result.accessToken,
+          libraries,
+        }
+
+        if (user) {
+          const updatedUser = { ...user, embyConnect: embyConnectData }
+          setUser(updatedUser)
+          localStorage.setItem("jellyfin-user", JSON.stringify(updatedUser))
+        }
+
+        return true
+      } else {
+        throw new Error(result.error || "Authentication failed")
       }
-
-      if (user) {
-        const updatedUser = { ...user, embyConnect: embyConnectData }
-        setUser(updatedUser)
-        localStorage.setItem("jellyfin-user", JSON.stringify(updatedUser))
-      }
-
-      return true
     } catch (error) {
+      console.error("Emby connection error:", error)
       return false
     }
   }
 
   const disconnectEmby = () => {
     if (user) {
+      embyAPI.logout()
       const updatedUser = { ...user, embyConnect: { connected: false } }
       setUser(updatedUser)
       localStorage.setItem("jellyfin-user", JSON.stringify(updatedUser))
+      localStorage.removeItem("emby-connection")
     }
   }
 

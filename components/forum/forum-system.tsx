@@ -18,6 +18,18 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
   MessageSquare,
   Plus,
   Search,
@@ -32,14 +44,28 @@ import {
   User,
   Crown,
   Shield,
+  MoreVertical,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react"
 import { formatUKDateTime, getRelativeTime } from "@/lib/date-utils"
 import { useForumStore } from "@/lib/forum-store"
-import { useAuth } from "@/lib/auth-context"
+import { useAuth } from "@/providers/auth-provider"
 
 export function ForumSystem() {
   const { user } = useAuth()
-  const { posts, addPost, addReply, likePost, dislikePost, likeReply, dislikeReply, incrementViews } = useForumStore()
+  const {
+    posts,
+    addPost,
+    addReply,
+    likePost,
+    dislikePost,
+    likeReply,
+    dislikeReply,
+    incrementViews,
+    deletePost,
+    deleteReply,
+  } = useForumStore()
 
   const [searchQuery, setSearchQuery] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
@@ -106,6 +132,32 @@ export function ForumSystem() {
   const handlePostClick = (post: any) => {
     setSelectedPost(post)
     incrementViews(post.id)
+  }
+
+  const handleDeletePost = (postId: string) => {
+    deletePost(postId)
+    if (selectedPost && selectedPost.id === postId) {
+      setSelectedPost(null)
+    }
+  }
+
+  const handleDeleteReply = (postId: string, replyId: string) => {
+    deleteReply(postId, replyId)
+    // Refresh selected post to show updated replies
+    const updatedPost = posts.find((p) => p.id === postId)
+    if (updatedPost) {
+      setSelectedPost(updatedPost)
+    }
+  }
+
+  const canDeletePost = (post: any) => {
+    if (!user) return false
+    return user.role === "admin" || user.role === "moderator" || user.username === post.author
+  }
+
+  const canDeleteReply = (reply: any) => {
+    if (!user) return false
+    return user.role === "admin" || user.role === "moderator" || user.username === reply.author
   }
 
   const getRoleIcon = (role: string) => {
@@ -284,6 +336,46 @@ export function ForumSystem() {
                       </div>
                       <CardDescription className="line-clamp-2">{post.content}</CardDescription>
                     </div>
+                    {canDeletePost(post) && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                <Trash2 className="h-4 w-4 mr-2 text-red-500" />
+                                Delete Post
+                              </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle className="flex items-center gap-2">
+                                  <AlertTriangle className="h-5 w-5 text-red-500" />
+                                  Delete Post
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete this post? This action cannot be undone and will also
+                                  delete all replies.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeletePost(post.id)}
+                                  className="bg-red-500 hover:bg-red-600"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
@@ -393,6 +485,40 @@ export function ForumSystem() {
                         <ThumbsDown className="h-3 w-3 mr-1" />
                         {selectedPost.dislikes}
                       </Button>
+                      {canDeletePost(selectedPost) && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-red-500 hover:text-red-600 bg-transparent"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle className="flex items-center gap-2">
+                                <AlertTriangle className="h-5 w-5 text-red-500" />
+                                Delete Post
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this post? This action cannot be undone and will also
+                                delete all replies.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeletePost(selectedPost.id)}
+                                className="bg-red-500 hover:bg-red-600"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
@@ -420,14 +546,51 @@ export function ForumSystem() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {selectedPost.replies_data.map((reply: any) => (
-                      <div key={reply.id} className="border-l-2 border-purple-200 pl-4">
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          {getRoleIcon(reply.authorRole)}
-                          <span className="font-medium text-sm">{reply.author}</span>
-                          <Badge className={`ios-badge text-white border-0 text-xs ${getRoleBadge(reply.authorRole)}`}>
-                            {reply.authorRole}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">{getRelativeTime(reply.timestamp)}</span>
+                      <div key={reply.id} className="border-l-2 border-purple-200 pl-4 relative">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {getRoleIcon(reply.authorRole)}
+                            <span className="font-medium text-sm">{reply.author}</span>
+                            <Badge
+                              className={`ios-badge text-white border-0 text-xs ${getRoleBadge(reply.authorRole)}`}
+                            >
+                              {reply.authorRole}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">{getRelativeTime(reply.timestamp)}</span>
+                          </div>
+                          {canDeleteReply(reply) && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 text-red-500 hover:text-red-600"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle className="flex items-center gap-2">
+                                    <AlertTriangle className="h-5 w-5 text-red-500" />
+                                    Delete Reply
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete this reply? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteReply(selectedPost.id, reply.id)}
+                                    className="bg-red-500 hover:bg-red-600"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
                         </div>
                         <p className="text-sm mb-2">{reply.content}</p>
                         <div className="flex items-center gap-2">

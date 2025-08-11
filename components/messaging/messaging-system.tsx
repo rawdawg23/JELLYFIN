@@ -1,12 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Dialog,
   DialogContent,
@@ -15,338 +17,512 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { MessageSquare, Send, Search, Plus, MoreHorizontal, Pin, Star, Users } from "lucide-react"
-import { useAuth } from "@/lib/auth-context"
-import { getRelativeTime } from "@/lib/date-utils"
-
-interface Message {
-  id: string
-  senderId: string
-  senderName: string
-  senderAvatar?: string
-  content: string
-  timestamp: string
-  isRead: boolean
-  isPinned?: boolean
-  isStarred?: boolean
-}
-
-interface Conversation {
-  id: string
-  participants: string[]
-  participantNames: string[]
-  participantAvatars: string[]
-  lastMessage: Message
-  unreadCount: number
-  isGroup: boolean
-  groupName?: string
-}
-
-const mockConversations: Conversation[] = [
-  {
-    id: "1",
-    participants: ["admin-001", "user-123"],
-    participantNames: ["OG Admin"],
-    participantAvatars: ["https://api.dicebear.com/7.x/avataaars/svg?seed=admin"],
-    lastMessage: {
-      id: "msg-1",
-      senderId: "admin-001",
-      senderName: "OG Admin",
-      senderAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=admin",
-      content: "Welcome to OG JELLYFIN! How can I help you today?",
-      timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-      isRead: false,
-    },
-    unreadCount: 1,
-    isGroup: false,
-  },
-  {
-    id: "2",
-    participants: ["user-456", "user-789", "user-123"],
-    participantNames: ["JellyUser", "MediaFan"],
-    participantAvatars: [
-      "https://api.dicebear.com/7.x/avataaars/svg?seed=user1",
-      "https://api.dicebear.com/7.x/avataaars/svg?seed=user2",
-    ],
-    lastMessage: {
-      id: "msg-2",
-      senderId: "user-456",
-      senderName: "JellyUser",
-      senderAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=user1",
-      content: "Has anyone tried the new Jellyfin 10.9 beta?",
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-      isRead: true,
-    },
-    unreadCount: 0,
-    isGroup: true,
-    groupName: "Jellyfin Beta Testers",
-  },
-]
+import {
+  MessageSquare,
+  Send,
+  Search,
+  Plus,
+  Inbox,
+  SendIcon as Sent,
+  Trash2,
+  Star,
+  Reply,
+  Clock,
+  User,
+  Crown,
+  Shield,
+  CheckCircle,
+  Circle,
+} from "lucide-react"
+import { formatUKDateTime, getRelativeTime } from "@/lib/date-utils"
+import { useMessageStore } from "@/lib/message-store"
+import { useAuth } from "@/providers/auth-provider"
 
 export function MessagingSystem() {
   const { user } = useAuth()
-  const [conversations, setConversations] = useState<Conversation[]>(mockConversations)
-  const [selectedConversation, setSelectedConversation] = useState<string | null>(null)
-  const [messages, setMessages] = useState<Message[]>([])
-  const [newMessage, setNewMessage] = useState("")
+  const { messages, sendMessage, markAsRead, markAsUnread, deleteMessage, starMessage } = useMessageStore()
+
   const [searchQuery, setSearchQuery] = useState("")
-  const [showNewMessageDialog, setShowNewMessageDialog] = useState(false)
+  const [selectedMessage, setSelectedMessage] = useState<any>(null)
+  const [showComposeDialog, setShowComposeDialog] = useState(false)
+  const [replyContent, setReplyContent] = useState("")
+  const [newMessage, setNewMessage] = useState({
+    recipient: "",
+    subject: "",
+    content: "",
+  })
 
-  if (!user) return null
+  const getFilteredMessages = (type: string) => {
+    const filteredMessages = messages.filter((message) => {
+      const matchesSearch =
+        message.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        message.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        message.sender.toLowerCase().includes(searchQuery.toLowerCase())
 
-  const filteredConversations = conversations.filter(
-    (conv) =>
-      conv.participantNames.some((name) => name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (conv.groupName && conv.groupName.toLowerCase().includes(searchQuery.toLowerCase())),
-  )
+      switch (type) {
+        case "inbox":
+          return message.recipient === user?.username && !message.deleted && matchesSearch
+        case "sent":
+          return message.sender === user?.username && !message.deleted && matchesSearch
+        case "starred":
+          return message.starred && !message.deleted && matchesSearch
+        case "archived":
+          return message.archived && !message.deleted && matchesSearch
+        default:
+          return matchesSearch
+      }
+    })
+
+    return filteredMessages.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+  }
 
   const handleSendMessage = () => {
-    if (!newMessage.trim() || !selectedConversation) return
+    if (!user || !newMessage.recipient || !newMessage.subject || !newMessage.content) return
 
-    const message: Message = {
-      id: `msg-${Date.now()}`,
-      senderId: user.id,
-      senderName: user.username,
-      senderAvatar: user.avatar,
-      content: newMessage,
-      timestamp: new Date().toISOString(),
-      isRead: true,
+    sendMessage({
+      ...newMessage,
+      sender: user.username,
+      senderRole: user.role,
+    })
+
+    setNewMessage({ recipient: "", subject: "", content: "" })
+    setShowComposeDialog(false)
+  }
+
+  const handleReply = () => {
+    if (!selectedMessage || !replyContent.trim() || !user) return
+
+    sendMessage({
+      recipient: selectedMessage.sender,
+      subject: `Re: ${selectedMessage.subject}`,
+      content: replyContent,
+      sender: user.username,
+      senderRole: user.role,
+      parentId: selectedMessage.id,
+    })
+
+    setReplyContent("")
+  }
+
+  const handleMessageClick = (message: any) => {
+    setSelectedMessage(message)
+    if (!message.read && message.recipient === user?.username) {
+      markAsRead(message.id)
     }
+  }
 
-    setMessages((prev) => [...prev, message])
-    setNewMessage("")
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case "admin":
+        return <Crown className="h-3 w-3 text-yellow-500" />
+      case "moderator":
+        return <Shield className="h-3 w-3 text-blue-500" />
+      default:
+        return <User className="h-3 w-3 text-purple-500" />
+    }
+  }
 
-    // Update conversation's last message
-    setConversations((prev) =>
-      prev.map((conv) => (conv.id === selectedConversation ? { ...conv, lastMessage: message } : conv)),
+  const getRoleBadge = (role: string) => {
+    const colors = {
+      admin: "bg-gradient-to-r from-yellow-500 to-orange-500",
+      moderator: "bg-gradient-to-r from-blue-500 to-indigo-500",
+      user: "bg-gradient-to-r from-purple-500 to-indigo-500",
+    }
+    return colors[role as keyof typeof colors] || colors.user
+  }
+
+  if (!user) {
+    return (
+      <Card className="ios-card border-0">
+        <CardContent className="text-center py-12">
+          <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Sign In Required</h3>
+          <p className="text-muted-foreground">Please sign in to access your messages.</p>
+        </CardContent>
+      </Card>
     )
   }
 
-  const selectedConv = conversations.find((c) => c.id === selectedConversation)
-
   return (
-    <div className="max-w-6xl mx-auto p-4">
-      <Card className="ios-card border-0 h-[600px]">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-blue-500" />
-                Messages
-              </CardTitle>
-              <CardDescription>Stay connected with the community</CardDescription>
-            </div>
-            <Dialog open={showNewMessageDialog} onOpenChange={setShowNewMessageDialog}>
-              <DialogTrigger asChild>
-                <Button className="ios-button text-white border-0">
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Message
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+            Messages
+          </h2>
+          <p className="text-base sm:text-lg text-muted-foreground mt-2">Communicate with other community members</p>
+        </div>
+        <Dialog open={showComposeDialog} onOpenChange={setShowComposeDialog}>
+          <DialogTrigger asChild>
+            <Button className="ios-button text-white border-0 w-full sm:w-auto">
+              <Plus className="h-4 w-4 mr-2" />
+              Compose
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md mx-4">
+            <DialogHeader>
+              <DialogTitle>New Message</DialogTitle>
+              <DialogDescription>Send a message to another user</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="recipient">To</Label>
+                <Input
+                  id="recipient"
+                  placeholder="Username"
+                  value={newMessage.recipient}
+                  onChange={(e) => setNewMessage({ ...newMessage, recipient: e.target.value })}
+                  className="ios-search border-0"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="subject">Subject</Label>
+                <Input
+                  id="subject"
+                  placeholder="Message subject"
+                  value={newMessage.subject}
+                  onChange={(e) => setNewMessage({ ...newMessage, subject: e.target.value })}
+                  className="ios-search border-0"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="content">Message</Label>
+                <Textarea
+                  id="content"
+                  placeholder="Type your message..."
+                  value={newMessage.content}
+                  onChange={(e) => setNewMessage({ ...newMessage, content: e.target.value })}
+                  className="ios-search border-0 min-h-[120px]"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleSendMessage} className="ios-button text-white border-0 flex-1">
+                  <Send className="h-4 w-4 mr-2" />
+                  Send Message
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md mx-4">
-                <DialogHeader>
-                  <DialogTitle>New Message</DialogTitle>
-                  <DialogDescription>Start a new conversation</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <Input placeholder="Search users..." className="ios-search border-0" />
-                  <Textarea placeholder="Type your message..." className="ios-search border-0" />
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => setShowNewMessageDialog(false)}
-                      variant="outline"
-                      className="flex-1 ios-button bg-transparent"
-                    >
-                      Cancel
-                    </Button>
-                    <Button className="flex-1 ios-button text-white border-0">
-                      <Send className="h-4 w-4 mr-2" />
-                      Send
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </CardHeader>
-
-        <CardContent className="p-0 h-[500px]">
-          <div className="flex h-full">
-            {/* Conversations List */}
-            <div className="w-1/3 border-r border-gray-200 flex flex-col">
-              <div className="p-4 border-b border-gray-200">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search conversations..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 ios-search border-0"
-                  />
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto">
-                {filteredConversations.map((conv) => (
-                  <div
-                    key={conv.id}
-                    onClick={() => setSelectedConversation(conv.id)}
-                    className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
-                      selectedConversation === conv.id ? "bg-purple-50 border-purple-200" : ""
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="relative">
-                        {conv.isGroup ? (
-                          <div className="flex -space-x-2">
-                            {conv.participantAvatars.slice(0, 2).map((avatar, index) => (
-                              <Avatar key={index} className="h-10 w-10 border-2 border-white">
-                                <AvatarImage src={avatar || "/placeholder.png"} />
-                                <AvatarFallback>{conv.participantNames[index]?.charAt(0)}</AvatarFallback>
-                              </Avatar>
-                            ))}
-                          </div>
-                        ) : (
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage src={conv.participantAvatars[0] || "/placeholder.png"} />
-                            <AvatarFallback>{conv.participantNames[0]?.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                        )}
-                        {conv.unreadCount > 0 && (
-                          <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center bg-red-500 text-white text-xs">
-                            {conv.unreadCount}
-                          </Badge>
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <h4 className="font-medium truncate">
-                            {conv.isGroup ? conv.groupName : conv.participantNames[0]}
-                          </h4>
-                          <span className="text-xs text-gray-500">{getRelativeTime(conv.lastMessage.timestamp)}</span>
-                        </div>
-                        <p className="text-sm text-gray-600 truncate">{conv.lastMessage.content}</p>
-                        {conv.isGroup && (
-                          <div className="flex items-center gap-1 mt-1">
-                            <Users className="h-3 w-3 text-gray-400" />
-                            <span className="text-xs text-gray-400">{conv.participants.length} members</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                <Button variant="outline" onClick={() => setShowComposeDialog(false)} className="flex-1">
+                  Cancel
+                </Button>
               </div>
             </div>
+          </DialogContent>
+        </Dialog>
+      </div>
 
-            {/* Chat Area */}
-            <div className="flex-1 flex flex-col">
-              {selectedConv ? (
-                <>
-                  {/* Chat Header */}
-                  <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {selectedConv.isGroup ? (
-                        <div className="flex -space-x-2">
-                          {selectedConv.participantAvatars.slice(0, 2).map((avatar, index) => (
-                            <Avatar key={index} className="h-8 w-8 border-2 border-white">
-                              <AvatarImage src={avatar || "/placeholder.png"} />
-                              <AvatarFallback>{selectedConv.participantNames[index]?.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                          ))}
+      <Tabs defaultValue="inbox" className="space-y-4 sm:space-y-6">
+        <TabsList className="ios-tabs grid w-full grid-cols-4">
+          <TabsTrigger value="inbox">
+            <Inbox className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Inbox</span>
+            <span className="sm:hidden">In</span>
+          </TabsTrigger>
+          <TabsTrigger value="sent">
+            <Sent className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Sent</span>
+          </TabsTrigger>
+          <TabsTrigger value="starred">
+            <Star className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Starred</span>
+          </TabsTrigger>
+          <TabsTrigger value="message" disabled={!selectedMessage}>
+            <MessageSquare className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">
+              {selectedMessage ? selectedMessage.subject.substring(0, 15) + "..." : "Select"}
+            </span>
+            <span className="sm:hidden">Msg</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="inbox" className="space-y-4 sm:space-y-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
+            <Input
+              placeholder="Search messages..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 ios-search border-0"
+            />
+          </div>
+
+          <div className="space-y-3">
+            {getFilteredMessages("inbox").map((message) => (
+              <Card
+                key={message.id}
+                className={`ios-card border-0 cursor-pointer hover:shadow-lg transition-all duration-300 ${
+                  !message.read ? "bg-purple-50" : ""
+                }`}
+                onClick={() => handleMessageClick(message)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${message.sender}`} />
+                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-indigo-500 text-white text-sm">
+                          {message.sender.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          {getRoleIcon(message.senderRole)}
+                          <span className="font-medium text-sm">{message.sender}</span>
+                          <Badge
+                            className={`ios-badge text-white border-0 text-xs ${getRoleBadge(message.senderRole)}`}
+                          >
+                            {message.senderRole}
+                          </Badge>
                         </div>
-                      ) : (
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={selectedConv.participantAvatars[0] || "/placeholder.png"} />
-                          <AvatarFallback>{selectedConv.participantNames[0]?.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                      )}
-                      <div>
-                        <h3 className="font-medium">
-                          {selectedConv.isGroup ? selectedConv.groupName : selectedConv.participantNames[0]}
-                        </h3>
-                        <p className="text-xs text-gray-500">
-                          {selectedConv.isGroup ? `${selectedConv.participants.length} members` : "Online"}
-                        </p>
+                        <h4 className={`text-sm mb-1 line-clamp-1 ${!message.read ? "font-semibold" : ""}`}>
+                          {message.subject}
+                        </h4>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{message.content}</p>
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  {/* Messages */}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {messages.length === 0 ? (
-                      <div className="text-center text-gray-500 mt-8">
-                        <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                        <p>No messages yet. Start the conversation!</p>
+                    <div className="flex items-center gap-2 ml-2">
+                      {!message.read ? (
+                        <Circle className="h-2 w-2 fill-purple-500 text-purple-500" />
+                      ) : (
+                        <CheckCircle className="h-3 w-3 text-green-500" />
+                      )}
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        <span className="hidden sm:inline">{getRelativeTime(message.timestamp)}</span>
+                        <span className="sm:hidden">{getRelativeTime(message.timestamp).split(" ")[0]}</span>
                       </div>
-                    ) : (
-                      messages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`flex gap-3 ${message.senderId === user.id ? "flex-row-reverse" : ""}`}
-                        >
-                          <Avatar className="h-8 w-8 flex-shrink-0">
-                            <AvatarImage src={message.senderAvatar || "/placeholder.png"} />
-                            <AvatarFallback>{message.senderName.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          <div className={`max-w-xs lg:max-w-md ${message.senderId === user.id ? "text-right" : ""}`}>
-                            <div
-                              className={`rounded-2xl px-4 py-2 ${
-                                message.senderId === user.id
-                                  ? "bg-gradient-to-r from-purple-500 to-indigo-600 text-white"
-                                  : "bg-gray-100 text-gray-900"
-                              }`}
-                            >
-                              <p className="text-sm">{message.content}</p>
-                            </div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs text-gray-500">{getRelativeTime(message.timestamp)}</span>
-                              {message.isPinned && <Pin className="h-3 w-3 text-gray-400" />}
-                              {message.isStarred && <Star className="h-3 w-3 text-yellow-400 fill-current" />}
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    )}
+                    </div>
                   </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-                  {/* Message Input */}
-                  <div className="p-4 border-t border-gray-200">
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Type a message..."
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                        className="flex-1 ios-search border-0"
-                      />
+          {getFilteredMessages("inbox").length === 0 && (
+            <div className="text-center py-12">
+              <div className="ios-card rounded-2xl p-8 max-w-md mx-auto">
+                <Inbox className="h-12 w-12 text-purple-400 mx-auto mb-4" />
+                <p className="text-muted-foreground">
+                  {searchQuery ? "No messages match your search." : "Your inbox is empty."}
+                </p>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="sent" className="space-y-4 sm:space-y-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
+            <Input
+              placeholder="Search sent messages..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 ios-search border-0"
+            />
+          </div>
+
+          <div className="space-y-3">
+            {getFilteredMessages("sent").map((message) => (
+              <Card
+                key={message.id}
+                className="ios-card border-0 cursor-pointer hover:shadow-lg transition-all duration-300"
+                onClick={() => handleMessageClick(message)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${message.recipient}`} />
+                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-indigo-500 text-white text-sm">
+                          {message.recipient.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium text-sm">To: {message.recipient}</span>
+                        </div>
+                        <h4 className="text-sm font-medium mb-1 line-clamp-1">{message.subject}</h4>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{message.content}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground ml-2">
+                      <Clock className="h-3 w-3" />
+                      <span className="hidden sm:inline">{getRelativeTime(message.timestamp)}</span>
+                      <span className="sm:hidden">{getRelativeTime(message.timestamp).split(" ")[0]}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {getFilteredMessages("sent").length === 0 && (
+            <div className="text-center py-12">
+              <div className="ios-card rounded-2xl p-8 max-w-md mx-auto">
+                <Sent className="h-12 w-12 text-purple-400 mx-auto mb-4" />
+                <p className="text-muted-foreground">
+                  {searchQuery ? "No sent messages match your search." : "You haven't sent any messages yet."}
+                </p>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="starred" className="space-y-4 sm:space-y-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
+            <Input
+              placeholder="Search starred messages..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 ios-search border-0"
+            />
+          </div>
+
+          <div className="space-y-3">
+            {getFilteredMessages("starred").map((message) => (
+              <Card
+                key={message.id}
+                className="ios-card border-0 cursor-pointer hover:shadow-lg transition-all duration-300"
+                onClick={() => handleMessageClick(message)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${message.sender}`} />
+                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-indigo-500 text-white text-sm">
+                          {message.sender.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          {getRoleIcon(message.senderRole)}
+                          <span className="font-medium text-sm">{message.sender}</span>
+                          <Badge
+                            className={`ios-badge text-white border-0 text-xs ${getRoleBadge(message.senderRole)}`}
+                          >
+                            {message.senderRole}
+                          </Badge>
+                          <Star className="h-3 w-3 text-yellow-500 fill-current" />
+                        </div>
+                        <h4 className="text-sm font-medium mb-1 line-clamp-1">{message.subject}</h4>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{message.content}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground ml-2">
+                      <Clock className="h-3 w-3" />
+                      <span className="hidden sm:inline">{getRelativeTime(message.timestamp)}</span>
+                      <span className="sm:hidden">{getRelativeTime(message.timestamp).split(" ")[0]}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {getFilteredMessages("starred").length === 0 && (
+            <div className="text-center py-12">
+              <div className="ios-card rounded-2xl p-8 max-w-md mx-auto">
+                <Star className="h-12 w-12 text-purple-400 mx-auto mb-4" />
+                <p className="text-muted-foreground">
+                  {searchQuery ? "No starred messages match your search." : "You haven't starred any messages yet."}
+                </p>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="message" className="space-y-4 sm:space-y-6">
+          {selectedMessage ? (
+            <div className="space-y-4 sm:space-y-6">
+              <Card className="ios-card border-0">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-lg sm:text-xl mb-2">{selectedMessage.subject}</CardTitle>
+                      <div className="flex items-center gap-3 mb-3 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage
+                              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedMessage.sender}`}
+                            />
+                            <AvatarFallback className="bg-gradient-to-br from-purple-500 to-indigo-500 text-white text-xs">
+                              {selectedMessage.sender.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          {getRoleIcon(selectedMessage.senderRole)}
+                          <span className="font-medium text-sm">{selectedMessage.sender}</span>
+                          <Badge
+                            className={`ios-badge text-white border-0 text-xs ${getRoleBadge(selectedMessage.senderRole)}`}
+                          >
+                            {selectedMessage.senderRole}
+                          </Badge>
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {formatUKDateTime(selectedMessage.timestamp)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
                       <Button
-                        onClick={handleSendMessage}
-                        disabled={!newMessage.trim()}
-                        className="ios-button text-white border-0"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => starMessage(selectedMessage.id)}
+                        className="ios-button bg-transparent"
                       >
-                        <Send className="h-4 w-4" />
+                        <Star className={`h-3 w-3 ${selectedMessage.starred ? "text-yellow-500 fill-current" : ""}`} />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => deleteMessage(selectedMessage.id)}
+                        className="ios-button bg-transparent text-red-500"
+                      >
+                        <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
                   </div>
-                </>
-              ) : (
-                <div className="flex-1 flex items-center justify-center text-gray-500">
-                  <div className="text-center">
-                    <MessageSquare className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                    <h3 className="text-lg font-medium mb-2">Select a conversation</h3>
-                    <p>Choose a conversation from the list to start messaging</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="p-4 bg-purple-50 rounded-xl mb-4">
+                    <p className="leading-relaxed whitespace-pre-wrap">{selectedMessage.content}</p>
                   </div>
-                </div>
-              )}
+                </CardContent>
+              </Card>
+
+              <Card className="ios-card border-0">
+                <CardHeader>
+                  <CardTitle className="text-lg">Reply</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Textarea
+                    placeholder="Type your reply..."
+                    value={replyContent}
+                    onChange={(e) => setReplyContent(e.target.value)}
+                    className="ios-search border-0 min-h-[100px]"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleReply}
+                      className="ios-button text-white border-0"
+                      disabled={!replyContent.trim()}
+                    >
+                      <Reply className="h-4 w-4 mr-2" />
+                      Send Reply
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          ) : (
+            <div className="text-center py-12">
+              <div className="ios-card rounded-2xl p-8 max-w-md mx-auto">
+                <MessageSquare className="h-12 w-12 text-purple-400 mx-auto mb-4" />
+                <p className="text-muted-foreground">Select a message to view the conversation</p>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

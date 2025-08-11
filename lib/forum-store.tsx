@@ -41,6 +41,8 @@ interface ForumStore {
   likeReply: (postId: string, replyId: string) => void
   dislikeReply: (postId: string, replyId: string) => void
   incrementViews: (postId: string) => void
+  deletePost: (postId: string) => void
+  deleteReply: (postId: string, replyId: string) => void
 }
 
 export const useForumStore = create<ForumStore>()(
@@ -175,6 +177,22 @@ export const useForumStore = create<ForumStore>()(
       incrementViews: (postId) =>
         set((state) => ({
           posts: state.posts.map((post) => (post.id === postId ? { ...post, views: post.views + 1 } : post)),
+        })),
+      deletePost: (postId) =>
+        set((state) => ({
+          posts: state.posts.filter((post) => post.id !== postId),
+        })),
+      deleteReply: (postId, replyId) =>
+        set((state) => ({
+          posts: state.posts.map((post) =>
+            post.id === postId
+              ? {
+                  ...post,
+                  replies: Math.max(0, post.replies - 1),
+                  replies_data: post.replies_data.filter((reply) => reply.id !== replyId),
+                }
+              : post,
+          ),
         })),
     }),
     {
