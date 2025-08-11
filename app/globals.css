@@ -190,6 +190,174 @@
     @apply rounded-full px-2 py-1 text-xs font-medium shadow-sm;
   }
 
+  /* PayPal Responsive Styles */
+  .paypal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .paypal-modal {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .paypal-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .paypal-modal-header h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0;
+  }
+
+  .paypal-close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: all 0.2s;
+  }
+
+  .paypal-close-btn:hover {
+    background: #f3f4f6;
+    color: #374151;
+  }
+
+  .paypal-modal-content {
+    padding: 1.5rem;
+  }
+
+  .payment-details {
+    margin-bottom: 1.5rem;
+  }
+
+  .plan-info {
+    text-align: center;
+    padding: 1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    color: white;
+    margin-bottom: 1rem;
+  }
+
+  .plan-info h4 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .plan-info .price {
+    font-size: 2rem;
+    font-weight: 700;
+  }
+
+  .paypal-button-container {
+    min-height: 55px;
+  }
+
+  /* Mobile-specific PayPal styles */
+  @media (max-width: 768px) {
+    .paypal-modal {
+      margin: 1rem;
+      max-width: calc(100% - 2rem);
+      border-radius: 16px;
+    }
+
+    .paypal-modal-header {
+      padding: 1rem;
+    }
+
+    .paypal-modal-content {
+      padding: 1rem;
+    }
+
+    .plan-info {
+      padding: 0.75rem;
+    }
+
+    .plan-info .price {
+      font-size: 1.5rem;
+    }
+
+    .paypal-button-container {
+      min-height: 45px;
+    }
+
+    /* Ensure PayPal buttons are touch-friendly on mobile */
+    .paypal-button-container iframe {
+      min-height: 45px !important;
+    }
+  }
+
+  /* Tablet-specific PayPal styles */
+  @media (min-width: 769px) and (max-width: 1023px) {
+    .paypal-modal {
+      max-width: 600px;
+    }
+
+    .paypal-button-container {
+      min-height: 50px;
+    }
+  }
+
+  /* Desktop PayPal styles */
+  @media (min-width: 1024px) {
+    .paypal-modal {
+      max-width: 500px;
+    }
+
+    .paypal-button-container {
+      min-height: 55px;
+    }
+  }
+
+  /* PayPal animations */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(50px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
   /* Scrollbar hide utility */
   .scrollbar-hide {
     -ms-overflow-style: none;
@@ -340,6 +508,16 @@
     .ios-button {
       padding: 0.75rem 1rem;
     }
+
+    /* Mobile-specific hover effects */
+    .ios-card:hover {
+      transform: translateY(-4px) scale(1.01);
+    }
+
+    /* Reduce scale on mobile for better performance */
+    .hover\:scale-105:hover {
+      transform: scale(1.02);
+    }
   }
 
   /* Mobile menu specific styles */
@@ -367,6 +545,38 @@
   @media (max-width: 1024px) {
     body.mobile-menu-open {
       overflow: hidden;
+    }
+  }
+
+  /* Responsive PayPal button adjustments */
+  @media (max-width: 480px) {
+    .paypal-modal {
+      margin: 0.5rem;
+      max-width: calc(100% - 1rem);
+      border-radius: 12px;
+    }
+
+    .paypal-modal-header {
+      padding: 0.75rem;
+    }
+
+    .paypal-modal-content {
+      padding: 0.75rem;
+    }
+
+    .plan-info .price {
+      font-size: 1.25rem;
+    }
+  }
+
+  /* High DPI display optimizations */
+  @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .ios-card {
+      border-width: 0.5px;
+    }
+
+    .paypal-modal {
+      border-width: 0.5px;
     }
   }
 }
@@ -442,4 +652,36 @@
 .dark .ios-alert {
   background: rgba(30, 20, 50, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Device-specific optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Touch device optimizations */
+  .ios-button:hover {
+    transform: none;
+  }
+
+  .ios-button:active {
+    transform: scale(0.98);
+  }
+
+  .ios-card:hover {
+    transform: none;
+  }
+
+  .library-card:hover {
+    transform: none;
+  }
+}
+
+/* Landscape mobile optimizations */
+@media (max-width: 768px) and (orientation: landscape) {
+  .paypal-modal {
+    max-height: 80vh;
+    margin: 2rem auto;
+  }
+
+  .paypal-modal-content {
+    padding: 1rem;
+  }
 }
