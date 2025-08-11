@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { MessageSquare, Send, X, Minimize2, Maximize2, Users, Sparkles } from "lucide-react"
+import { MessageSquare, Send, X, Minimize2, Maximize2, Users, Sparkles, Wifi, WifiOff } from "lucide-react"
 import { format } from "date-fns"
 import { useAuth } from "@/providers/auth-provider"
+import { useRealTimeChat } from "@/lib/hooks/use-real-time-chat"
 
 // Enhanced rainbow color generator with gradients
 const getRainbowGradient = (name: string) => {
@@ -78,133 +79,16 @@ export function LiveChatWidget({ className = "" }: LiveChatWidgetProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
   const [newMessage, setNewMessage] = useState("")
-  const [messages, setMessages] = useState<Message[]>([])
-  const [isTyping, setIsTyping] = useState(false)
-  const [onlineUsers, setOnlineUsers] = useState<any[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const getRegisteredUsers = () => {
-    // Access the mockUsers from the auth provider context
-    const registeredUsers = [
-      {
-        id: "1",
-        username: "ogadmin",
-        email: "ogstorage25@gmail.com",
-        role: "admin",
-        avatar: "/placeholder-user.png",
-        location: "United Kingdom",
-      },
-      {
-        id: "2",
-        username: "johndoe",
-        email: "john@example.com",
-        role: "user",
-        avatar: "/placeholder-user.png",
-        location: "London, UK",
-      },
-      {
-        id: "3",
-        username: "seller123",
-        email: "seller@example.com",
-        role: "seller",
-        avatar: "/placeholder-user.png",
-        location: "Manchester, UK",
-      },
-    ]
-    return registeredUsers
-  }
-
-  useEffect(() => {
-    const simulateOnlineUsers = () => {
-      const registeredUsers = getRegisteredUsers()
-      // Simulate 1-3 users being online (excluding current user)
-      const availableUsers = registeredUsers.filter((user) => user.id !== currentUser?.id)
-      const onlineCount = Math.floor(Math.random() * Math.min(availableUsers.length, 3)) + 1
-      const shuffled = [...availableUsers].sort(() => 0.5 - Math.random())
-      const selectedUsers = shuffled.slice(0, onlineCount)
-
-      setOnlineUsers(selectedUsers)
-    }
-
-    if (currentUser) {
-      simulateOnlineUsers()
-      // Update online users every 45 seconds for more realistic behavior
-      const interval = setInterval(simulateOnlineUsers, 45000)
-      return () => clearInterval(interval)
-    } else {
-      setOnlineUsers([])
-    }
-  }, [currentUser])
-
-  useEffect(() => {
-    if (isOpen && messages.length === 0) {
-      const welcomeMessage: Message = {
-        id: "welcome-1",
-        content: `Welcome to the live chat, ${currentUser?.username}! Connect with other registered members.`,
-        sender: {
-          id: "system",
-          username: "System",
-          avatar: "/placeholder.svg",
-          role: "system",
-        },
-        timestamp: new Date().toISOString(),
-      }
-      setMessages([welcomeMessage])
-    }
-  }, [isOpen, currentUser])
+  const { messages, onlineUsers, sendMessage, isConnected } = useRealTimeChat(currentUser)
 
   const handleSendMessage = async () => {
     if (newMessage.trim() && currentUser) {
-      const message: Message = {
-        id: Date.now().toString(),
-        content: newMessage.trim(),
-        sender: {
-          id: currentUser.id,
-          username: currentUser.username,
-          avatar: currentUser.avatar,
-          role: currentUser.role,
-        },
-        timestamp: new Date().toISOString(),
+      const success = await sendMessage(newMessage)
+      if (success) {
+        setNewMessage("")
       }
-
-      setMessages((prev) => [...prev, message])
-      setNewMessage("")
-      setIsTyping(true)
-
-      // Simulate responses from online users
-      setTimeout(
-        () => {
-          setIsTyping(false)
-          if (onlineUsers.length > 0 && Math.random() > 0.6) {
-            const randomUser = onlineUsers[Math.floor(Math.random() * onlineUsers.length)]
-            const responses = [
-              "Hey there! 👋",
-              "How's everyone doing today?",
-              "Great to see you online!",
-              "Anyone watching anything good on Jellyfin lately?",
-              "Nice to chat with fellow members!",
-              "Hope you're having a great day!",
-              "What's new in your media collection?",
-              "Love the community here! 💙",
-            ]
-
-            const responseMessage: Message = {
-              id: Date.now().toString() + "-response",
-              content: responses[Math.floor(Math.random() * responses.length)],
-              sender: {
-                id: randomUser.id,
-                username: randomUser.username,
-                avatar: randomUser.avatar,
-                role: randomUser.role,
-              },
-              timestamp: new Date().toISOString(),
-            }
-
-            setMessages((prev) => [...prev, responseMessage])
-          }
-        },
-        1500 + Math.random() * 3000,
-      )
     }
   }
 
@@ -215,6 +99,15 @@ export function LiveChatWidget({ className = "" }: LiveChatWidgetProps) {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  useEffect(() => {
+    if (isOpen && messages.length === 0 && currentUser) {
+      // Send welcome message through the real-time system
+      setTimeout(() => {
+        sendMessage(`👋 ${currentUser.username} joined the chat!`)
+      }, 500)
+    }
+  }, [isOpen, currentUser, messages.length, sendMessage])
 
   if (!currentUser) {
     return null
@@ -234,6 +127,11 @@ export function LiveChatWidget({ className = "" }: LiveChatWidgetProps) {
             <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/20 to-transparent"></div>
             <div className="absolute inset-0 rounded-full bg-gradient-to-tl from-transparent via-white/10 to-white/30 animate-pulse"></div>
             <MessageSquare className="h-5 w-5 sm:h-7 sm:w-7 text-white drop-shadow-lg relative z-10" />
+            {isConnected ? (
+              <Wifi className="h-3 w-3 sm:h-4 sm:w-4 text-green-300 absolute top-0.5 left-0.5 sm:top-1 sm:left-1" />
+            ) : (
+              <WifiOff className="h-3 w-3 sm:h-4 sm:w-4 text-red-300 absolute top-0.5 left-0.5 sm:top-1 sm:left-1 animate-pulse" />
+            )}
             <Sparkles className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-300 absolute top-0.5 right-0.5 sm:top-1 sm:right-1 animate-spin" />
             {onlineUsers.length > 0 && (
               <Badge className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 h-5 w-5 sm:h-7 sm:w-7 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 text-white text-xs p-0 flex items-center justify-center shadow-lg border-2 border-white animate-bounce">
@@ -270,12 +168,20 @@ export function LiveChatWidget({ className = "" }: LiveChatWidgetProps) {
               <div className="flex items-center gap-1 sm:gap-2">
                 <div className="relative">
                   <Users className="h-4 w-4 sm:h-5 sm:w-5 drop-shadow-lg" />
-                  <div className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 w-2 h-2 sm:w-3 sm:h-3 bg-gradient-to-r from-green-400 to-emerald-400 border border-white sm:border-2 rounded-full animate-ping"></div>
-                  <div className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 w-2 h-2 sm:w-3 sm:h-3 bg-gradient-to-r from-green-400 to-emerald-400 border border-white sm:border-2 rounded-full"></div>
+                  {isConnected ? (
+                    <div className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 w-2 h-2 sm:w-3 sm:h-3 bg-gradient-to-r from-green-400 to-emerald-400 border border-white sm:border-2 rounded-full animate-ping"></div>
+                  ) : (
+                    <div className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 w-2 h-2 sm:w-3 sm:h-3 bg-gradient-to-r from-red-400 to-red-500 border border-white sm:border-2 rounded-full animate-pulse"></div>
+                  )}
+                  <div
+                    className={`absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 w-2 h-2 sm:w-3 sm:h-3 ${isConnected ? "bg-gradient-to-r from-green-400 to-emerald-400" : "bg-gradient-to-r from-red-400 to-red-500"} border border-white sm:border-2 rounded-full`}
+                  ></div>
                 </div>
                 <span className="font-bold drop-shadow-lg truncate">
-                  <span className="hidden sm:inline">Live Chat ({onlineUsers.length} members online)</span>
-                  <span className="sm:hidden">Chat ({onlineUsers.length})</span>
+                  <span className="hidden sm:inline">
+                    {isConnected ? `Live Chat (${onlineUsers.length} online)` : "Live Chat (Connecting...)"}
+                  </span>
+                  <span className="sm:hidden">{isConnected ? `Chat (${onlineUsers.length})` : "Chat (...)"}</span>
                 </span>
               </div>
               <div className="flex items-center gap-1">
@@ -305,6 +211,7 @@ export function LiveChatWidget({ className = "" }: LiveChatWidgetProps) {
 
           {!isMinimized && (
             <>
+              {/* Online users display code */}
               <div className="px-2 sm:px-4 py-2 sm:py-3 bg-gradient-to-r from-gray-50/80 to-gray-100/80 border-b border-white/20 backdrop-blur-sm">
                 <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-hide">
                   <span className="text-xs text-gray-700 whitespace-nowrap font-semibold flex-shrink-0">
@@ -349,11 +256,14 @@ export function LiveChatWidget({ className = "" }: LiveChatWidgetProps) {
                     </Badge>
                   )}
                   {onlineUsers.length === 0 && (
-                    <span className="text-xs text-gray-500 font-medium flex-shrink-0">No members online</span>
+                    <span className="text-xs text-gray-500 font-medium flex-shrink-0">
+                      {isConnected ? "No members online" : "Connecting..."}
+                    </span>
                   )}
                 </div>
               </div>
 
+              {/* Messages display code */}
               <CardContent className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-2 sm:space-y-3 h-48 sm:h-64 md:h-80 bg-gradient-to-b from-white/5 to-white/10 scrollbar-hide">
                 {messages.length === 0 ? (
                   <div className="text-center text-gray-600 py-4 sm:py-8 text-sm">
@@ -362,10 +272,12 @@ export function LiveChatWidget({ className = "" }: LiveChatWidgetProps) {
                       <Sparkles className="h-4 w-4 sm:h-6 sm:w-6 absolute top-0 right-1/2 translate-x-4 sm:translate-x-6 text-yellow-400 animate-spin" />
                     </div>
                     <p className="font-bold text-base sm:text-lg mb-1 sm:mb-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                      Welcome to 4D Live Chat!
+                      Welcome to Real-Time Chat!
                     </p>
-                    <p className="text-xs sm:text-sm opacity-75">Chat with other registered members in real-time</p>
-                    {onlineUsers.length === 0 && (
+                    <p className="text-xs sm:text-sm opacity-75">
+                      {isConnected ? "Chat with other registered members in real-time" : "Connecting to chat server..."}
+                    </p>
+                    {onlineUsers.length === 0 && isConnected && (
                       <p className="text-xs mt-2 sm:mt-3 opacity-60">No other members are online right now</p>
                     )}
                   </div>
@@ -390,12 +302,10 @@ export function LiveChatWidget({ className = "" }: LiveChatWidgetProps) {
                         className={`max-w-[75%] sm:max-w-[70%] p-2 sm:p-3 rounded-2xl text-xs sm:text-sm shadow-lg backdrop-blur-sm border transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
                           message.sender.id === currentUser?.id
                             ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-br-md border-blue-300/50"
-                            : message.sender.id === "system"
-                              ? "bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-bl-md border-green-300/50"
-                              : "bg-white/80 text-gray-800 rounded-bl-md border-gray-200/50"
+                            : "bg-white/80 text-gray-800 rounded-bl-md border-gray-200/50"
                         }`}
                       >
-                        {message.sender.id !== currentUser?.id && message.sender.id !== "system" && (
+                        {message.sender.id !== currentUser?.id && (
                           <p
                             className={`text-xs font-bold mb-1 sm:mb-2 ${getRainbowTextColor(message.sender.username || "User")} drop-shadow-sm`}
                           >
@@ -405,9 +315,7 @@ export function LiveChatWidget({ className = "" }: LiveChatWidgetProps) {
                         <p className="leading-relaxed break-words">{message.content}</p>
                         <span
                           className={`text-xs opacity-75 mt-1 sm:mt-2 block ${
-                            message.sender.id === currentUser?.id || message.sender.id === "system"
-                              ? "text-blue-100"
-                              : "text-gray-500"
+                            message.sender.id === currentUser?.id ? "text-blue-100" : "text-gray-500"
                           }`}
                         >
                           {format(new Date(message.timestamp), "HH:mm")}
@@ -416,22 +324,6 @@ export function LiveChatWidget({ className = "" }: LiveChatWidgetProps) {
                     </div>
                   ))
                 )}
-                {isTyping && (
-                  <div className="flex items-center gap-2 text-gray-500 text-xs animate-pulse">
-                    <div className="flex gap-1">
-                      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                      <div
-                        className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: "0.1s" }}
-                      ></div>
-                      <div
-                        className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: "0.2s" }}
-                      ></div>
-                    </div>
-                    <span>Someone is typing...</span>
-                  </div>
-                )}
                 <div ref={messagesEndRef} />
               </CardContent>
 
@@ -439,7 +331,7 @@ export function LiveChatWidget({ className = "" }: LiveChatWidgetProps) {
                 <div className="flex items-center gap-2 sm:gap-3">
                   <div className="relative flex-1">
                     <Input
-                      placeholder="Type your message..."
+                      placeholder={isConnected ? "Type your message..." : "Connecting..."}
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       onKeyPress={(e) => {
@@ -449,17 +341,19 @@ export function LiveChatWidget({ className = "" }: LiveChatWidgetProps) {
                         }
                       }}
                       className="text-xs sm:text-sm bg-white/80 backdrop-blur-sm border-white/40 rounded-full px-3 sm:px-4 py-2 shadow-lg focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400 transition-all duration-200 min-h-[40px] sm:min-h-[44px]"
-                      disabled={!currentUser}
+                      disabled={!currentUser || !isConnected}
                     />
                     <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 pointer-events-none"></div>
                   </div>
                   <div className="relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full blur opacity-75"></div>
+                    <div
+                      className={`absolute inset-0 ${isConnected ? "bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500" : "bg-gray-400"} rounded-full blur opacity-75`}
+                    ></div>
                     <Button
                       onClick={handleSendMessage}
                       size="icon"
-                      className="relative h-10 w-10 sm:h-11 sm:w-11 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 hover:from-blue-400 hover:via-purple-400 hover:to-pink-400 rounded-full shadow-lg transform hover:scale-110 active:scale-95 transition-all duration-200 border border-white/20"
-                      disabled={!newMessage.trim() || !currentUser}
+                      className={`relative h-10 w-10 sm:h-11 sm:w-11 ${isConnected ? "bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 hover:from-blue-400 hover:via-purple-400 hover:to-pink-400" : "bg-gray-400"} rounded-full shadow-lg transform hover:scale-110 active:scale-95 transition-all duration-200 border border-white/20`}
+                      disabled={!newMessage.trim() || !currentUser || !isConnected}
                     >
                       <Send className="h-4 w-4 sm:h-5 sm:w-5 text-white drop-shadow-lg" />
                     </Button>

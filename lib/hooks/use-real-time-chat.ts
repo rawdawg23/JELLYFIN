@@ -1,259 +1,236 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { supabase, type Database, isSupabaseConfigured } from "@/lib/supabase/client"
-import { useAuth } from "@/providers/auth-provider"
+import { useState, useEffect, useCallback, useRef } from "react"
 
-type User = Database["public"]["Tables"]["users"]["Row"]
-type Message = Database["public"]["Tables"]["messages"]["Row"] & {
-  sender: User
-}
-type Conversation = {
+interface Message {
   id: string
-  participants: User[]
-  messages: Message[]
-  created_at: string
-  updated_at: string
+  content: string
+  sender: {
+    id: string
+    username: string
+    avatar?: string
+    role: string
+  }
+  timestamp: string
 }
 
-const mockOnlineUsers: User[] = [
-  {
-    id: "1",
-    name: "Alex Chen",
-    email: "alex@example.com",
-    avatar: "/placeholder-user.jpg",
-    location: "San Francisco, CA",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "2",
-    name: "Sarah Johnson",
-    email: "sarah@example.com",
-    avatar: "/placeholder-user.jpg",
-    location: "New York, NY",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-]
+interface OnlineUser {
+  id: string
+  username: string
+  avatar?: string
+  role: string
+}
 
-export function useRealTimeChat() {
-  const { user: currentUser } = useAuth()
-  const [onlineUsers, setOnlineUsers] = useState<User[]>([])
-  const [conversations, setConversations] = useState<Conversation[]>([])
-  const [loading, setLoading] = useState(true)
+interface ChatData {
+  type: "message" | "users_update" | "init"
+  data: any
+}
 
-  const updatePresence = useCallback(
-    async (status: "online" | "offline" | "away") => {
-      if (!currentUser || !isSupabaseConfigured) return
+export function useRealTimeChat(currentUser: any) {
+  const [messages, setMessages] = useState<Message[]>([])
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([])
+  const [isConnected, setIsConnected] = useState(false)
+  const eventSourceRef = useRef<EventSource | null>(null)
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-      await supabase.from("user_presence").upsert({
-        user_id: currentUser.id,
-        status,
-        last_seen: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-    },
-    [currentUser],
-  )
-
-  const loadOnlineUsers = useCallback(async () => {
-    if (!isSupabaseConfigured) {
-      setOnlineUsers(mockOnlineUsers)
-      return
-    }
-
-    const { data: presenceData } = await supabase
-      .from("user_presence")
-      .select(`
-        user_id,
-        status,
-        users (
-          id,
-          name,
-          email,
-          avatar,
-          location
-        )
-      `)
-      .eq("status", "online")
-
-    if (presenceData) {
-      const users = presenceData.filter((p) => p.users && p.user_id !== currentUser?.id).map((p) => p.users as User)
-      setOnlineUsers(users)
-    }
-  }, [currentUser])
-
-  const loadConversations = useCallback(async () => {
+  const connect = useCallback(() => {
     if (!currentUser) return
 
-    if (!isSupabaseConfigured) {
-      setConversations([])
-      return
-    }
-
-    const { data: conversationData } = await supabase
-      .from("conversation_participants")
-      .select(`
-        conversation_id,
-        conversations (
-          id,
-          created_at,
-          updated_at
-        )
-      `)
-      .eq("user_id", currentUser.id)
-
-    if (conversationData) {
-      const conversationIds = conversationData.map((cp) => cp.conversation_id)
-
-      // Load participants and messages for each conversation
-      const conversationsWithData = await Promise.all(
-        conversationIds.map(async (convId) => {
-          // Load participants
-          const { data: participants } = await supabase
-            .from("conversation_participants")
-            .select(`
-              users (
-                id,
-                name,
-                email,
-                avatar,
-                location
-              )
-            `)
-            .eq("conversation_id", convId)
-
-          // Load messages
-          const { data: messages } = await supabase
-            .from("messages")
-            .select(`
-              *,
-              sender:users (
-                id,
-                name,
-                email,
-                avatar,
-                location
-              )
-            `)
-            .eq("conversation_id", convId)
-            .order("created_at", { ascending: true })
-
-          const conversation = conversationData.find((cd) => cd.conversation_id === convId)?.conversations
-
-          return {
-            id: convId,
-            participants: participants?.map((p) => p.users as User) || [],
-            messages: messages?.map((m) => ({ ...m, sender: m.sender as User })) || [],
-            created_at: conversation?.created_at || "",
-            updated_at: conversation?.updated_at || "",
-          }
-        }),
-      )
-
-      setConversations(conversationsWithData)
-    }
-  }, [currentUser])
-
-  const startConversation = useCallback(
-    async (otherUserId: string) => {
-      if (!currentUser || !isSupabaseConfigured) return null
-
-      // Check if conversation already exists
-      const existingConv = conversations.find((conv) => conv.participants.some((p) => p.id === otherUserId))
-      if (existingConv) return existingConv.id
-
-      // Create new conversation
-      const { data: newConv } = await supabase.from("conversations").insert({}).select().single()
-
-      if (newConv) {
-        // Add participants
-        await supabase.from("conversation_participants").insert([
-          { conversation_id: newConv.id, user_id: currentUser.id },
-          { conversation_id: newConv.id, user_id: otherUserId },
-        ])
-
-        await loadConversations()
-        return newConv.id
+    try {
+      // Close existing connection
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
       }
 
-      return null
-    },
-    [currentUser, conversations, loadConversations],
-  )
+      // Create new EventSource connection
+      const eventSource = new EventSource("/api/chat")
+      eventSourceRef.current = eventSource
+
+      eventSource.onopen = () => {
+        console.log("Chat connection opened")
+        setIsConnected(true)
+
+        // Register user as online
+        fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "user_online",
+            data: {
+              user: {
+                id: currentUser.id,
+                username: currentUser.username,
+                avatar: currentUser.avatar,
+                role: currentUser.role,
+              },
+            },
+          }),
+        }).catch(console.error)
+      }
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data: ChatData = JSON.parse(event.data)
+
+          switch (data.type) {
+            case "init":
+              setMessages(data.data.messages || [])
+              setOnlineUsers((data.data.users || []).filter((user: OnlineUser) => user.id !== currentUser.id))
+              break
+            case "message":
+              setMessages((prev) => [...prev, data.data])
+              break
+            case "users_update":
+              setOnlineUsers((data.data || []).filter((user: OnlineUser) => user.id !== currentUser.id))
+              break
+          }
+        } catch (error) {
+          console.error("Error parsing chat data:", error)
+        }
+      }
+
+      eventSource.onerror = (error) => {
+        console.error("Chat connection error:", error)
+        setIsConnected(false)
+        eventSource.close()
+
+        // Attempt to reconnect after 3 seconds
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current)
+        }
+        reconnectTimeoutRef.current = setTimeout(() => {
+          console.log("Attempting to reconnect to chat...")
+          connect()
+        }, 3000)
+      }
+    } catch (error) {
+      console.error("Failed to connect to chat:", error)
+      setIsConnected(false)
+    }
+  }, [currentUser])
+
+  const disconnect = useCallback(() => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close()
+      eventSourceRef.current = null
+    }
+
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current)
+      reconnectTimeoutRef.current = null
+    }
+
+    if (currentUser) {
+      // Register user as offline
+      fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "user_offline",
+          data: { userId: currentUser.id },
+        }),
+      }).catch(console.error)
+    }
+
+    setIsConnected(false)
+  }, [currentUser])
 
   const sendMessage = useCallback(
-    async (conversationId: string, content: string) => {
-      if (!currentUser || !isSupabaseConfigured) return
+    async (content: string): Promise<boolean> => {
+      if (!currentUser || !isConnected) return false
 
-      await supabase.from("messages").insert({
-        conversation_id: conversationId,
-        sender_id: currentUser.id,
-        content,
-      })
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "send_message",
+            data: {
+              content,
+              sender: {
+                id: currentUser.id,
+                username: currentUser.username,
+                avatar: currentUser.avatar,
+                role: currentUser.role,
+              },
+            },
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error("Failed to send message")
+        }
+
+        // Update user activity
+        fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "user_activity",
+            data: { userId: currentUser.id },
+          }),
+        }).catch(console.error)
+
+        return true
+      } catch (error) {
+        console.error("Error sending message:", error)
+        return false
+      }
     },
-    [currentUser],
+    [currentUser, isConnected],
   )
 
-  useEffect(() => {
-    if (!currentUser) return
-
-    if (!isSupabaseConfigured) {
-      loadOnlineUsers()
-      setLoading(false)
-      return
-    }
-
-    // Update presence to online
-    updatePresence("online")
-
-    // Subscribe to presence changes
-    const presenceChannel = supabase
-      .channel("user_presence")
-      .on("postgres_changes", { event: "*", schema: "public", table: "user_presence" }, () => loadOnlineUsers())
-      .subscribe()
-
-    // Subscribe to new messages
-    const messagesChannel = supabase
-      .channel("messages")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, () => loadConversations())
-      .subscribe()
-
-    // Update presence every 30 seconds
-    const presenceInterval = setInterval(() => {
-      updatePresence("online")
-    }, 30000)
-
-    // Set offline when leaving
-    const handleBeforeUnload = () => {
-      updatePresence("offline")
-    }
-    window.addEventListener("beforeunload", handleBeforeUnload)
-
-    return () => {
-      updatePresence("offline")
-      presenceChannel.unsubscribe()
-      messagesChannel.unsubscribe()
-      clearInterval(presenceInterval)
-      window.removeEventListener("beforeunload", handleBeforeUnload)
-    }
-  }, [currentUser, updatePresence, loadOnlineUsers, loadConversations])
-
+  // Connect when user is available
   useEffect(() => {
     if (currentUser) {
-      Promise.all([loadOnlineUsers(), loadConversations()]).finally(() => {
-        setLoading(false)
-      })
+      connect()
+    } else {
+      disconnect()
     }
-  }, [currentUser, loadOnlineUsers, loadConversations])
+
+    return () => {
+      disconnect()
+    }
+  }, [currentUser, connect, disconnect])
+
+  // Update user activity periodically
+  useEffect(() => {
+    if (!currentUser || !isConnected) return
+
+    const activityInterval = setInterval(() => {
+      fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "user_activity",
+          data: { userId: currentUser.id },
+        }),
+      }).catch(console.error)
+    }, 15000) // Update every 15 seconds
+
+    return () => clearInterval(activityInterval)
+  }, [currentUser, isConnected])
+
+  // Handle page visibility changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Page is hidden, disconnect
+        disconnect()
+      } else if (currentUser) {
+        // Page is visible, reconnect
+        connect()
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
+  }, [currentUser, connect, disconnect])
 
   return {
+    messages,
     onlineUsers,
-    conversations,
-    loading,
-    startConversation,
+    isConnected,
     sendMessage,
-    refreshData: () => Promise.all([loadOnlineUsers(), loadConversations()]),
   }
 }
