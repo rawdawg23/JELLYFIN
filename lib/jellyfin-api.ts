@@ -3,10 +3,8 @@ export interface JellyfinLibrary {
   Id: string
   Name: string
   CollectionType: string
-  ItemCount?: number
+  ItemCount: number
   PrimaryImageTag?: string
-  BackdropImageTags?: string[]
-  LastModified?: string
 }
 
 export interface JellyfinServerInfo {
@@ -21,13 +19,13 @@ export interface JellyfinServerInfo {
 export interface JellyfinUser {
   Id: string
   Name: string
+  ServerId: string
   HasPassword: boolean
   HasConfiguredPassword: boolean
   HasConfiguredEasyPassword: boolean
-  EnableAutoLogin?: boolean
-  ServerId?: string
-  LastLoginDate?: string
-  LastActivityDate?: string
+  EnableAutoLogin: boolean
+  LastLoginDate: string
+  LastActivityDate: string
 }
 
 export interface NewUserCredentials {
@@ -45,14 +43,14 @@ export interface JellyfinServer {
 }
 
 export interface QuickConnectResult {
-  secret: string
-  code: string
-  deviceId: string
-  deviceName: string
-  appName: string
-  appVersion: string
-  dateAdded: string
-  authenticated: boolean
+  Secret: string
+  Code: string
+  DeviceId: string
+  DeviceName: string
+  AppName: string
+  AppVersion: string
+  DateAdded: string
+  Authenticated: boolean
 }
 
 export interface QuickConnectLinkResult {
@@ -75,281 +73,295 @@ export interface LibraryStats {
   photos: number
 }
 
+export interface JellyfinItem {
+  Id: string
+  Name: string
+  Type: string
+  ProductionYear?: number
+  PrimaryImageTag?: string
+  BackdropImageTags?: string[]
+  Overview?: string
+  CommunityRating?: number
+  RunTimeTicks?: number
+}
+
 class JellyfinAPI {
-  private baseUrl: string
-  private apiKey: string | null = null
-  private userId: string | null = null
+  private baseUrl = "https://xqi1eda.freshticks.xyz"
+  private apiKey = ""
+  private userId = ""
 
-  constructor() {
-    this.baseUrl = "https://xqi1eda.freshticks.xyz"
+  // Mock delay to simulate network requests
+  private async mockDelay(ms = 500): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms))
   }
 
-  setApiKey(apiKey: string) {
-    this.apiKey = apiKey
-  }
-
-  setUserId(userId: string) {
-    this.userId = userId
-  }
-
-  private getHeaders() {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      "X-Emby-Client": "OG JELLYFIN Store",
-      "X-Emby-Device-Name": "Web Browser",
-      "X-Emby-Device-Id": "og-jellyfin-store-web",
-      "X-Emby-Client-Version": "1.0.0",
-    }
-
-    if (this.apiKey) {
-      headers["X-Emby-Token"] = this.apiKey
-    }
-
-    return headers
-  }
-
-  // Mock data for when real API fails
-  private getMockLibraries() {
+  async getLibraries(): Promise<JellyfinLibrary[]> {
+    await this.mockDelay(300)
     return [
       {
-        Id: "movies-lib",
+        Id: "lib1",
         Name: "Movies",
         CollectionType: "movies",
         ItemCount: 1247,
-        PrimaryImageTag: "movie-collection",
+        PrimaryImageTag: "movies-thumb",
       },
       {
-        Id: "tv-lib",
+        Id: "lib2",
         Name: "TV Shows",
         CollectionType: "tvshows",
         ItemCount: 89,
-        PrimaryImageTag: "tv-collection",
+        PrimaryImageTag: "tv-thumb",
       },
       {
-        Id: "music-lib",
+        Id: "lib3",
         Name: "Music",
         CollectionType: "music",
         ItemCount: 3456,
-        PrimaryImageTag: "music-collection",
+        PrimaryImageTag: "music-thumb",
       },
       {
-        Id: "books-lib",
+        Id: "lib4",
         Name: "Books",
         CollectionType: "books",
         ItemCount: 234,
-        PrimaryImageTag: "books-collection",
+        PrimaryImageTag: "books-thumb",
       },
     ]
   }
 
-  private getMockSearchResults(query: string) {
-    const mockItems = [
+  async searchItems(query: string, limit = 20): Promise<JellyfinItem[]> {
+    await this.mockDelay(800)
+
+    if (!query.trim()) return []
+
+    // Filter mock results based on query
+    const filtered = [
       {
-        Id: "movie-1",
+        Id: "item1",
         Name: "The Matrix",
         Type: "Movie",
         ProductionYear: 1999,
-        PrimaryImageTag: "matrix-poster",
+        PrimaryImageTag: "matrix-thumb",
+        Overview: "A computer programmer discovers reality is a simulation.",
+        CommunityRating: 8.7,
       },
       {
-        Id: "movie-2",
-        Name: "Inception",
-        Type: "Movie",
-        ProductionYear: 2010,
-        PrimaryImageTag: "inception-poster",
-      },
-      {
-        Id: "tv-1",
+        Id: "item2",
         Name: "Breaking Bad",
         Type: "Series",
         ProductionYear: 2008,
-        PrimaryImageTag: "bb-poster",
+        PrimaryImageTag: "bb-thumb",
+        Overview: "A chemistry teacher turns to cooking meth.",
+        CommunityRating: 9.5,
       },
       {
-        Id: "music-1",
+        Id: "item3",
         Name: "Bohemian Rhapsody",
         Type: "Audio",
         ProductionYear: 1975,
-        PrimaryImageTag: "queen-album",
+        PrimaryImageTag: "queen-thumb",
+        Overview: "Classic rock anthem by Queen.",
       },
-    ]
+    ].filter(
+      (item) =>
+        item.Name.toLowerCase().includes(query.toLowerCase()) || item.Type.toLowerCase().includes(query.toLowerCase()),
+    )
 
-    return mockItems.filter((item) => item.Name.toLowerCase().includes(query.toLowerCase()))
-  }
+    // Add some dynamic results based on query
+    const dynamicResults: JellyfinItem[] = []
+    const queryLower = query.toLowerCase()
 
-  async getLibraries() {
-    try {
-      // Try real API first
-      const response = await fetch(`${this.baseUrl}/Users/${this.userId || "default"}/Views`, {
-        headers: {
-          "X-Emby-Token": this.apiKey || "",
-          "Content-Type": "application/json",
-        },
+    if (queryLower.includes("movie") || queryLower.includes("film")) {
+      dynamicResults.push({
+        Id: `movie-${Date.now()}`,
+        Name: `${query} Movie Collection`,
+        Type: "Movie",
+        ProductionYear: 2023,
+        Overview: `Movies matching "${query}"`,
       })
-
-      if (!response.ok) throw new Error("API request failed")
-
-      const data = await response.json()
-      return data.Items || []
-    } catch (error) {
-      console.warn("Using mock libraries data due to API error:", error)
-      return this.getMockLibraries()
     }
-  }
 
-  async searchItems(query: string, limit = 20) {
-    try {
-      // Try real API first
-      const response = await fetch(
-        `${this.baseUrl}/Users/${this.userId || "default"}/Items?searchTerm=${encodeURIComponent(query)}&limit=${limit}`,
-        {
-          headers: {
-            "X-Emby-Token": this.apiKey || "",
-            "Content-Type": "application/json",
-          },
-        },
-      )
-
-      if (!response.ok) throw new Error("Search API request failed")
-
-      const data = await response.json()
-      return data.Items || []
-    } catch (error) {
-      console.warn("Using mock search results due to API error:", error)
-      return this.getMockSearchResults(query)
-    }
-  }
-
-  getImageUrl(itemId: string, type: string, tag: string, width?: number, height?: number) {
-    // Return placeholder for mock data
-    if (width && height) {
-      return `/placeholder.svg?height=${height}&width=${width}&text=${encodeURIComponent(itemId)}`
-    }
-    return `/placeholder.svg?height=300&width=200&text=${encodeURIComponent(itemId)}`
-  }
-
-  // Quick Connect methods with mock fallback
-  async initiateQuickConnect() {
-    try {
-      const response = await fetch(`${this.baseUrl}/QuickConnect/Initiate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+    if (queryLower.includes("music") || queryLower.includes("song")) {
+      dynamicResults.push({
+        Id: `music-${Date.now()}`,
+        Name: `${query} Playlist`,
+        Type: "Audio",
+        ProductionYear: 2023,
+        Overview: `Music matching "${query}"`,
       })
-
-      if (!response.ok) throw new Error("Failed to initiate Quick Connect")
-      return await response.json()
-    } catch (error) {
-      console.warn("Using mock Quick Connect initiation:", error)
-      return {
-        Secret: "mock-secret-" + Date.now(),
-        Code: Math.random().toString(36).substring(2, 8).toUpperCase(),
-        DateAdded: new Date().toISOString(),
-      }
     }
+
+    return [...filtered, ...dynamicResults].slice(0, limit)
   }
 
-  async linkQuickConnectPin(pin: string) {
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    try {
-      // Mock different responses based on PIN
-      if (pin.toUpperCase() === "ERROR") {
-        throw new Error("Invalid PIN code")
-      }
-
-      if (pin.toUpperCase() === "TIMEOUT") {
-        throw new Error("Connection timeout")
-      }
-
-      if (pin.length < 4) {
-        throw new Error("PIN must be at least 4 characters")
-      }
-
-      // Mock successful connection
-      const deviceTypes = ["Android TV", "iPhone", "iPad", "Windows PC", "Smart TV", "Xbox", "PlayStation"]
-      const deviceNames = [
-        "Living Room TV",
-        "John's iPhone",
-        "Sarah's iPad",
-        "Home Theater",
-        "Bedroom TV",
-        "Gaming Console",
-      ]
-
-      const randomDevice = deviceTypes[Math.floor(Math.random() * deviceTypes.length)]
-      const randomName = deviceNames[Math.floor(Math.random() * deviceNames.length)]
-
-      return {
-        success: true,
-        device: {
-          id: "device-" + Date.now(),
-          name: randomName,
-          type: randomDevice,
-          appName: "Jellyfin",
-          appVersion: "10.8.13",
-          lastSeen: new Date().toISOString(),
-          isActive: true,
-        },
-        user: {
-          id: "user-123",
-          name: "Connected User",
-          hasPassword: true,
-        },
-      }
-    } catch (error) {
-      console.warn("Quick Connect PIN linking failed:", error)
-      throw error
+  getImageUrl(itemId: string, imageType: string, tag?: string, width?: number, height?: number): string {
+    // Return placeholder images for consistent UI
+    const imageMap: { [key: string]: string } = {
+      lib1: "/diverse-movie-collection.png",
+      lib2: "/tv-shows-collection.png",
+      lib3: "/diverse-music-collection.png",
+      lib4: "/books-collection.png",
+      item1: "/diverse-movie-collection.png",
+      item2: "/tv-shows-collection.png",
+      item3: "/diverse-music-collection.png",
     }
+
+    return imageMap[itemId] || "/placeholder.svg"
   }
 
-  async getQuickConnectStatus(secret: string) {
-    // Mock status check
-    await new Promise((resolve) => setTimeout(resolve, 500))
+  // Quick Connect functionality
+  async initiateQuickConnect(): Promise<QuickConnectResult> {
+    await this.mockDelay(1000)
+
+    const code = Math.random().toString().substr(2, 6)
 
     return {
+      Secret: `secret-${Date.now()}`,
+      Code: code,
+      DeviceId: `device-${Date.now()}`,
+      DeviceName: "Web Browser",
+      AppName: "OG Jellyfin Store",
+      AppVersion: "1.0.0",
+      DateAdded: new Date().toISOString(),
       Authenticated: false,
-      Secret: secret,
-      Code: Math.random().toString(36).substring(2, 8).toUpperCase(),
     }
   }
 
-  // User management methods
-  generateCredentials(planType: string) {
+  async checkQuickConnect(secret: string): Promise<{ Authenticated: boolean; AccessToken?: string }> {
+    await this.mockDelay(2000)
+
+    // Simulate different outcomes based on secret
+    const random = Math.random()
+
+    if (random > 0.7) {
+      return {
+        Authenticated: true,
+        AccessToken: `token-${Date.now()}`,
+      }
+    }
+
+    return { Authenticated: false }
+  }
+
+  // User management
+  generateCredentials(planType: string): { username: string; password: string; email: string } {
     const timestamp = Date.now()
-    const randomSuffix = Math.random().toString(36).substring(2, 6)
+    const planPrefix = planType.substring(0, 3).toLowerCase()
 
     return {
-      username: `${planType}_user_${randomSuffix}`,
-      password: `${planType}Pass${timestamp}`,
-      email: `user_${randomSuffix}@jellyfin.local`,
+      username: `${planPrefix}user${timestamp}`,
+      password: this.generateSecurePassword(),
+      email: `${planPrefix}user${timestamp}@ogjellyfin.com`,
     }
   }
 
-  async createUser(credentials: any, planType: string) {
-    // Mock user creation
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+  private generateSecurePassword(): string {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*"
+    let password = ""
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    return password
+  }
+
+  async createUser(
+    credentials: { username: string; password: string; email: string },
+    planType: string,
+  ): Promise<{ success: boolean; userId?: string; error?: string }> {
+    await this.mockDelay(2000)
+
+    // Simulate occasional failures for realistic testing
+    if (Math.random() > 0.9) {
+      return {
+        success: false,
+        error: "Username already exists",
+      }
+    }
 
     return {
       success: true,
-      userId: "user-" + Date.now(),
-      message: "User created successfully",
+      userId: `user-${Date.now()}`,
     }
   }
 
-  async assignLibrariesToUser(userId: string, planType: string) {
-    // Mock library assignment
-    await new Promise((resolve) => setTimeout(resolve, 500))
+  async assignLibrariesToUser(userId: string, planType: string): Promise<boolean> {
+    await this.mockDelay(1000)
 
+    // Different plans get different library access
     const libraryAccess = {
-      basic: ["movies", "tv"],
-      premium: ["movies", "tv", "music"],
-      family: ["movies", "tv", "music", "books"],
+      basic: ["Movies", "TV Shows"],
+      premium: ["Movies", "TV Shows", "Music"],
+      family: ["Movies", "TV Shows", "Music", "Books"],
+    }
+
+    console.log(`Assigned libraries to ${userId}:`, libraryAccess[planType as keyof typeof libraryAccess])
+    return true
+  }
+
+  // Server info
+  async getServerInfo(): Promise<{ ServerName: string; Version: string; Id: string }> {
+    await this.mockDelay(500)
+
+    return {
+      ServerName: "OG Jellyfin Server",
+      Version: "10.8.13",
+      Id: "server-og-jellyfin",
+    }
+  }
+
+  // Authentication
+  async authenticateUser(
+    username: string,
+    password: string,
+  ): Promise<{ AccessToken?: string; User?: JellyfinUser; error?: string }> {
+    await this.mockDelay(1500)
+
+    // Mock authentication - accept any non-empty credentials
+    if (!username.trim() || !password.trim()) {
+      return { error: "Username and password are required" }
+    }
+
+    // Simulate occasional auth failures
+    if (Math.random() > 0.8) {
+      return { error: "Invalid username or password" }
+    }
+
+    const user: JellyfinUser = {
+      Id: `user-${Date.now()}`,
+      Name: username,
+      ServerId: "server-og-jellyfin",
+      HasPassword: true,
+      HasConfiguredPassword: true,
+      HasConfiguredEasyPassword: false,
+      EnableAutoLogin: false,
+      LastLoginDate: new Date().toISOString(),
+      LastActivityDate: new Date().toISOString(),
+    }
+
+    return {
+      AccessToken: `token-${Date.now()}`,
+      User: user,
+    }
+  }
+
+  // Test connection
+  async testConnection(): Promise<{ success: boolean; message: string; latency?: number }> {
+    const startTime = Date.now()
+    await this.mockDelay(Math.random() * 1000 + 500)
+    const latency = Date.now() - startTime
+
+    // Simulate occasional connection issues
+    if (Math.random() > 0.85) {
+      return {
+        success: false,
+        message: "Connection timeout - server may be busy",
+      }
     }
 
     return {
       success: true,
-      assignedLibraries: libraryAccess[planType as keyof typeof libraryAccess] || ["movies"],
+      message: "Connected successfully to OG Jellyfin Server",
+      latency,
     }
   }
 }
