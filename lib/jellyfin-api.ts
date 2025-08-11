@@ -159,18 +159,23 @@ export class JellyfinAPI {
   }
 
   private getAuthHeaders(): Record<string, string> {
-    const authHeader = `MediaBrowser Client="${this.clientName}", Device="Web Browser", DeviceId="${this.deviceId}", Version="${this.clientVersion}", Token="${this.apiKey}"`
+    const token = this.accessToken || this.apiKey
+    const authHeader = `MediaBrowser Client="${this.clientName}", Device="Web Browser", DeviceId="${this.deviceId}", Version="${this.clientVersion}"${token ? `, Token="${token}"` : ""}`
 
-    return {
+    const headers: Record<string, string> = {
       "Content-Type": "application/json",
       "X-Emby-Authorization": authHeader,
-      "X-MediaBrowser-Token": this.apiKey,
     }
+
+    if (token) {
+      headers["X-MediaBrowser-Token"] = token
+    }
+
+    return headers
   }
 
   async testConnection(serverUrl?: string): Promise<{ success: boolean; message: string; serverInfo?: any }> {
     try {
-      // Update server URL if provided
       if (serverUrl) {
         this.baseUrl = serverUrl.replace(/\/$/, "")
       }
@@ -202,7 +207,6 @@ export class JellyfinAPI {
     try {
       const users = await this.makeRequest("/Users")
       if (users && users.length > 0) {
-        // Use the first available user or find admin user
         const adminUser = users.find((user: any) => user.Policy?.IsAdministrator) || users[0]
         this.userId = adminUser.Id
         return adminUser
@@ -346,15 +350,21 @@ export class JellyfinAPI {
     try {
       const response = await this.makeRequest("/Users/AuthenticateByName", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Emby-Authorization": `MediaBrowser Client="${this.clientName}", Device="${this.deviceName}", DeviceId="${this.deviceId}", Version="${this.clientVersion}"`,
+        },
         body: JSON.stringify(authData),
       })
 
       if (response && (response.AccessToken || response.accessToken)) {
+        this.accessToken = response.AccessToken || response.accessToken
         this.userId = response.User?.Id || response.SessionInfo?.UserId
+        this.sessionInfo = response.SessionInfo
 
         console.log("Authentication successful:", {
           userId: this.userId,
-          hasToken: !!response.AccessToken || !!response.accessToken,
+          hasToken: !!this.accessToken,
         })
       }
 
@@ -530,7 +540,6 @@ export class JellyfinAPI {
     authData?: any
   }> {
     try {
-      // Update server URL if provided
       if (serverUrl) {
         this.baseUrl = serverUrl.replace(/\/$/, "")
       }
@@ -590,7 +599,7 @@ export class JellyfinAPI {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `MediaBrowser Client="${this.clientName}", Device="${this.deviceName}", DeviceId="${this.deviceId}", Version="${this.version}"`,
+          "X-Emby-Authorization": `MediaBrowser Client="${this.clientName}", Device="${this.deviceName}", DeviceId="${this.deviceId}", Version="${this.clientVersion}"`,
         },
         body: JSON.stringify(authData),
       })
@@ -623,7 +632,6 @@ export class JellyfinAPI {
 
 export const jellyfinAPI = new JellyfinAPI()
 
-// Export configuration
 export const JELLYFIN_CONFIG = {
   serverUrl: "https://xqi1eda.freshticks.xyz:443",
   username: "abc",
@@ -632,7 +640,6 @@ export const JELLYFIN_CONFIG = {
   userId: null as string | null,
 }
 
-// Helper functions
 export async function connectToJellyfin(serverUrl?: string) {
   return await jellyfinAPI.testConnection(serverUrl)
 }
