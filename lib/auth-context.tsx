@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
+import { jellyfinAPI } from "./jellyfin-api"
 
 interface User {
   id: string
@@ -21,6 +22,12 @@ interface User {
     connectedAt?: string
     quickConnectCode?: string
   }
+  embyConnect?: {
+    connected: boolean
+    username?: string
+    email?: string
+    connectedAt?: string
+  }
 }
 
 interface AuthContextType {
@@ -30,9 +37,10 @@ interface AuthContextType {
   logout: () => void
   register: (username: string, email: string, password: string) => Promise<boolean>
   updateProfile: (updates: Partial<User>) => void
-  initiateQuickConnect: () => Promise<{ success: boolean; code?: string; error?: string }>
-  checkQuickConnectStatus: (code: string) => Promise<boolean>
+  validateQuickConnectCode: (code: string) => Promise<{ success: boolean; error?: string }>
   disconnectJellyfin: () => void
+  connectEmby: (username: string, password: string) => Promise<boolean>
+  disconnectEmby: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -130,60 +138,86 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const initiateQuickConnect = async (): Promise<{ success: boolean; code?: string; error?: string }> => {
+  const validateQuickConnectCode = async (code: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      // Mock Jellyfin Quick Connect initiation - in real app, this would call Jellyfin API
-      const quickConnectCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+      // Use the actual Jellyfin API to link the PIN
+      const linkResult = await jellyfinAPI.linkQuickConnectPin(code)
 
-      if (user) {
-        const updatedUser = {
-          ...user,
-          jellyfinQuickConnect: {
-            ...user.jellyfinQuickConnect,
-            quickConnectCode,
-            connected: false,
-          },
+      if (linkResult.success) {
+        const jellyfinQuickConnectData = {
+          connected: true,
+          username: user?.username || "JellyfinUser",
+          userId: linkResult.userId || "jellyfin-" + Date.now(),
+          serverId: linkResult.serverId || "og-jellyfin-server",
+          serverName: linkResult.serverName || "OG JELLYFIN Server",
+          connectedAt: new Date().toISOString(),
+          quickConnectCode: code,
         }
-        setUser(updatedUser)
-        localStorage.setItem("jellyfin-user", JSON.stringify(updatedUser))
-      }
 
-      return { success: true, code: quickConnectCode }
+        if (user) {
+          const updatedUser = { ...user, jellyfinQuickConnect: jellyfinQuickConnectData }
+          setUser(updatedUser)
+          localStorage.setItem("jellyfin-user", JSON.stringify(updatedUser))
+        }
+
+        return { success: true }
+      } else {
+        return { success: false, error: linkResult.error || "Failed to link PIN to server" }
+      }
     } catch (error) {
-      return { success: false, error: "Failed to initiate Quick Connect" }
+      return { success: false, error: "Connection failed. Please try again." }
     }
   }
 
-  const checkQuickConnectStatus = async (code: string): Promise<boolean> => {
-    try {
-      // Mock Quick Connect status check - in real app, this would poll Jellyfin API
-      // Simulate successful connection after a delay
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+  const disconnectJellyfin = () => {
+    if (user) {
+      // Disconnect from the actual server
+      jellyfinAPI.disconnectQuickConnect().catch(console.error)
 
-      const jellyfinQuickConnectData = {
+      const updatedUser = {
+        ...user,
+        jellyfinQuickConnect: {
+          connected: false,
+          quickConnectCode: undefined,
+          username: undefined,
+          userId: undefined,
+          serverId: undefined,
+          serverName: undefined,
+          connectedAt: undefined,
+        },
+      }
+      setUser(updatedUser)
+      localStorage.setItem("jellyfin-user", JSON.stringify(updatedUser))
+    }
+  }
+
+  const connectEmby = async (username: string, password: string): Promise<boolean> => {
+    try {
+      // Mock Emby Connect authentication
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+
+      const embyConnectData = {
         connected: true,
-        username: user?.username || "JellyfinUser",
-        userId: "jellyfin-" + Date.now(),
-        serverId: "server-123",
-        serverName: "OG JELLYFIN Server",
+        username,
+        email: `${username}@emby.media`,
         connectedAt: new Date().toISOString(),
-        quickConnectCode: code,
       }
 
       if (user) {
-        const updatedUser = { ...user, jellyfinQuickConnect: jellyfinQuickConnectData }
+        const updatedUser = { ...user, embyConnect: embyConnectData }
         setUser(updatedUser)
         localStorage.setItem("jellyfin-user", JSON.stringify(updatedUser))
       }
+
       return true
     } catch (error) {
       return false
     }
   }
 
-  const disconnectJellyfin = () => {
+  const disconnectEmby = () => {
     if (user) {
-      const updatedUser = { ...user, jellyfinQuickConnect: { connected: false } }
+      const updatedUser = { ...user, embyConnect: { connected: false } }
       setUser(updatedUser)
       localStorage.setItem("jellyfin-user", JSON.stringify(updatedUser))
     }
@@ -198,9 +232,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logout,
         register,
         updateProfile,
-        initiateQuickConnect,
-        checkQuickConnectStatus,
+        validateQuickConnectCode,
         disconnectJellyfin,
+        connectEmby,
+        disconnectEmby,
       }}
     >
       {children}

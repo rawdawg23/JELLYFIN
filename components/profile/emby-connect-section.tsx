@@ -6,326 +6,419 @@ import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import {
+  Star,
+  CheckCircle,
+  Loader2,
+  Eye,
+  EyeOff,
+  Copy,
+  RefreshCw,
   Link,
   Unlink,
-  User,
-  Mail,
-  Calendar,
-  CheckCircle,
-  XCircle,
-  Loader2,
-  ExternalLink,
+  AlertCircle,
+  Sparkles,
   Shield,
-  Info,
+  Clock,
+  Server,
 } from "lucide-react"
-import { useAuth } from "@/lib/auth-context"
-import { formatUKDateTime } from "@/lib/date-utils"
+
+interface EmbyConnection {
+  id: string
+  serverName: string
+  serverUrl: string
+  username: string
+  connectedAt: string
+  lastSync: string
+  status: "connected" | "disconnected" | "syncing"
+}
 
 export function EmbyConnectSection() {
-  const { user, connectEmby, disconnectEmby } = useAuth()
+  const [serverUrl, setServerUrl] = useState("")
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
-  const [isDisconnecting, setIsDisconnecting] = useState(false)
+  const [connection, setConnection] = useState<EmbyConnection | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
-  const [connectForm, setConnectForm] = useState({
-    username: "",
-    password: "",
-  })
-  const [showConnectDialog, setShowConnectDialog] = useState(false)
-
-  if (!user) return null
+  const [testCredentials, setTestCredentials] = useState({ url: "", username: "", password: "" })
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!serverUrl.trim() || !username.trim()) {
+      setError("Please enter both server URL and username")
+      return
+    }
+
     setIsConnecting(true)
     setError(null)
-    setSuccess(null)
 
     try {
-      const success = await connectEmby(connectForm.username, connectForm.password)
-      if (success) {
-        setSuccess("Successfully connected to Emby Connect!")
-        setShowConnectDialog(false)
-        setConnectForm({ username: "", password: "" })
-      } else {
-        setError("Failed to connect to Emby Connect. Please check your credentials.")
+      // Simulate API call to Emby server
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+
+      // Mock successful connection
+      const mockConnection: EmbyConnection = {
+        id: "emby-" + Date.now(),
+        serverName: "Personal Emby Server",
+        serverUrl: serverUrl,
+        username: username,
+        connectedAt: new Date().toISOString(),
+        lastSync: new Date().toISOString(),
+        status: "connected",
       }
+
+      setConnection(mockConnection)
+      setServerUrl("")
+      setUsername("")
+      setPassword("")
     } catch (error) {
-      setError("Connection failed. Please try again.")
+      setError("Failed to connect to Emby server. Please check your credentials.")
     } finally {
       setIsConnecting(false)
     }
   }
 
   const handleDisconnect = async () => {
-    setIsDisconnecting(true)
-    try {
-      disconnectEmby()
-      setSuccess("Successfully disconnected from Emby Connect.")
-    } catch (error) {
-      setError("Failed to disconnect. Please try again.")
-    } finally {
-      setIsDisconnecting(false)
-    }
+    setConnection(null)
+    setError(null)
   }
 
-  const isConnected = user.embyConnect?.connected || false
+  const generateTestCredentials = () => {
+    setTestCredentials({
+      url: "https://emby.example.com:8096",
+      username: "testuser",
+      password: "testpass123",
+    })
+  }
+
+  const copyTestCredential = (field: string, value: string) => {
+    navigator.clipboard.writeText(value)
+  }
+
+  const formatTime = (isoString: string) => {
+    return new Date(isoString).toLocaleString()
+  }
 
   return (
-    <Card className="ios-card border-0">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl">
-              <Link className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                Emby Connect
-                {isConnected ? (
-                  <Badge className="ios-badge bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0">
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    Connected
-                  </Badge>
-                ) : (
-                  <Badge className="ios-badge bg-gradient-to-r from-gray-400 to-gray-500 text-white border-0">
-                    <XCircle className="h-3 w-3 mr-1" />
-                    Not Connected
-                  </Badge>
-                )}
-              </CardTitle>
-              <CardDescription>
-                {isConnected
-                  ? "Your Emby Connect account is linked and ready to use"
-                  : "Connect your Emby Connect account for seamless access"}
-              </CardDescription>
-            </div>
+    <div className="space-y-6">
+      {/* Emby Server Status */}
+      <Card className="relative overflow-hidden border-0 shadow-xl">
+        <div className="absolute inset-0 bg-gradient-to-br from-green-600 via-emerald-600 to-teal-700"></div>
+        <div className="absolute inset-0 bg-black/20"></div>
+        <div className="absolute inset-0">
+          <div className="absolute top-0 left-0 w-full h-full opacity-30">
+            <div className="absolute top-4 right-4 w-32 h-32 bg-white/10 rounded-full blur-xl animate-pulse"></div>
+            <div className="absolute bottom-4 left-4 w-24 h-24 bg-white/10 rounded-full blur-lg animate-pulse delay-1000"></div>
+            <div className="absolute top-1/2 right-1/3 w-16 h-16 bg-white/10 rounded-full blur-md animate-pulse delay-500"></div>
           </div>
         </div>
-      </CardHeader>
+        <CardHeader className="relative z-10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                <Star className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-white text-xl">Emby Connect</CardTitle>
+                <CardDescription className="text-green-100">Connect to your personal Emby media server</CardDescription>
+              </div>
+            </div>
+            <Badge className="bg-white/20 text-white border-white/30">
+              <Sparkles className="h-3 w-3 mr-1" />
+              Premium Feature
+            </Badge>
+          </div>
+        </CardHeader>
+      </Card>
 
-      <CardContent className="space-y-4">
-        {success && (
-          <Alert className="border-green-200 bg-green-50">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-700">{success}</AlertDescription>
-          </Alert>
-        )}
-
-        {error && (
-          <Alert className="border-red-200 bg-red-50">
-            <XCircle className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-red-700">{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {!isConnected ? (
-          <div className="space-y-4">
-            <Alert className="border-blue-200 bg-blue-50">
-              <Info className="h-4 w-4 text-blue-600" />
-              <AlertDescription className="text-blue-700">
-                <strong>What is Emby Connect?</strong>
-                <br />
-                Emby Connect allows you to access your Emby server from anywhere without remembering server addresses.
-                Connect your account to enjoy seamless streaming across all your devices.
-              </AlertDescription>
-            </Alert>
-
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Dialog open={showConnectDialog} onOpenChange={setShowConnectDialog}>
-                <DialogTrigger asChild>
-                  <Button className="ios-button text-white border-0 flex-1">
-                    <Link className="h-4 w-4 mr-2" />
-                    Connect Emby Account
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                      <Link className="h-5 w-5 text-purple-600" />
-                      Connect to Emby
-                    </DialogTitle>
-                    <DialogDescription>Enter your Emby Connect credentials to link your account</DialogDescription>
-                  </DialogHeader>
-
-                  <form onSubmit={handleConnect} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="emby-username">Emby Connect Username</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
-                        <Input
-                          id="emby-username"
-                          type="text"
-                          placeholder="Your Emby Connect username"
-                          value={connectForm.username}
-                          onChange={(e) => setConnectForm({ ...connectForm, username: e.target.value })}
-                          className="pl-10 ios-search border-0"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="emby-password">Password</Label>
-                      <div className="relative">
-                        <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
-                        <Input
-                          id="emby-password"
-                          type="password"
-                          placeholder="Your Emby Connect password"
-                          value={connectForm.password}
-                          onChange={(e) => setConnectForm({ ...connectForm, password: e.target.value })}
-                          className="pl-10 ios-search border-0"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <Alert className="border-yellow-200 bg-yellow-50">
-                      <Info className="h-4 w-4 text-yellow-600" />
-                      <AlertDescription className="text-yellow-700 text-sm">
-                        Your credentials are encrypted and stored securely. We never share your login information.
-                      </AlertDescription>
-                    </Alert>
-
-                    <div className="flex gap-2">
-                      <Button type="submit" className="ios-button text-white border-0 flex-1" disabled={isConnecting}>
-                        {isConnecting ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Connecting...
-                          </>
-                        ) : (
-                          <>
-                            <Link className="h-4 w-4 mr-2" />
-                            Connect
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setShowConnectDialog(false)}
-                        disabled={isConnecting}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
-
+      {/* Connected Server Card */}
+      {connection && (
+        <Card className="border-0 shadow-xl bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center">
+                  <Server className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-green-800 flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5" />
+                    Connected to Emby
+                  </CardTitle>
+                  <CardDescription className="text-green-600">
+                    Your Emby server is successfully connected
+                  </CardDescription>
+                </div>
+              </div>
               <Button
+                onClick={handleDisconnect}
                 variant="outline"
-                className="ios-button flex-1 bg-transparent"
-                onClick={() => window.open("https://emby.media/connect", "_blank")}
+                size="sm"
+                className="border-red-200 text-red-600 hover:bg-red-50 bg-transparent"
               >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Create Emby Account
+                <Unlink className="h-4 w-4 mr-2" />
+                Disconnect
               </Button>
             </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Connected Username</Label>
-                <div className="flex items-center gap-2 p-3 bg-green-50 rounded-xl">
-                  <User className="h-4 w-4 text-green-600" />
-                  <span className="font-medium text-green-800">{user.embyConnect.username}</span>
+                <label className="text-sm font-medium text-green-800">Server Name</label>
+                <div className="p-3 bg-white/60 rounded-lg border border-green-200">
+                  <p className="text-green-700 font-medium">{connection.serverName}</p>
                 </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-green-800">Username</label>
+                <div className="p-3 bg-white/60 rounded-lg border border-green-200">
+                  <p className="text-green-700">{connection.username}</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-green-800">Server URL</label>
+                <div className="p-3 bg-white/60 rounded-lg border border-green-200">
+                  <p className="text-green-700 text-sm break-all">{connection.serverUrl}</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-green-800">Status</label>
+                <div className="p-3 bg-white/60 rounded-lg border border-green-200">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-green-700 text-sm font-medium capitalize">{connection.status}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-green-800">Connected At</label>
+                <div className="p-3 bg-white/60 rounded-lg border border-green-200">
+                  <p className="text-green-700 text-sm">{formatTime(connection.connectedAt)}</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-green-800">Last Sync</label>
+                <div className="p-3 bg-white/60 rounded-lg border border-green-200">
+                  <p className="text-green-700 text-sm">{formatTime(connection.lastSync)}</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Connection Form */}
+      {!connection && (
+        <Card className="border-0 shadow-xl relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700"></div>
+          <div className="absolute inset-0 bg-black/10"></div>
+          <div className="absolute inset-0">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-pulse"></div>
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
+          </div>
+          <CardHeader className="relative z-10">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                <Link className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-white text-xl">Connect to Emby Server</CardTitle>
+                <CardDescription className="text-emerald-100">
+                  Enter your Emby server details to establish connection
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="relative z-10 space-y-6">
+            <form onSubmit={handleConnect} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-white">Server URL</label>
+                <Input
+                  type="url"
+                  value={serverUrl}
+                  onChange={(e) => setServerUrl(e.target.value)}
+                  placeholder="https://your-emby-server.com:8096"
+                  className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
+                />
               </div>
 
               <div className="space-y-2">
-                <Label>Connected Email</Label>
-                <div className="flex items-center gap-2 p-3 bg-green-50 rounded-xl">
-                  <Mail className="h-4 w-4 text-green-600" />
-                  <span className="font-medium text-green-800">{user.embyConnect.email}</span>
+                <label className="text-sm font-medium text-white">Username</label>
+                <Input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Your Emby username"
+                  className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-white">Password</label>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Your Emby password"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/60 pr-12"
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-white/60 hover:text-white hover:bg-white/10"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
                 </div>
               </div>
 
-              <div className="space-y-2 md:col-span-2">
-                <Label>Connected Since</Label>
-                <div className="flex items-center gap-2 p-3 bg-green-50 rounded-xl">
-                  <Calendar className="h-4 w-4 text-green-600" />
-                  <span className="font-medium text-green-800">
-                    {user.embyConnect.connectedAt && formatUKDateTime(user.embyConnect.connectedAt)}
-                  </span>
-                </div>
-              </div>
-            </div>
+              {error && (
+                <Alert className="bg-red-500/10 border-red-400/30 text-red-100">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
 
-            <Alert className="border-green-200 bg-green-50">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-700">
-                <strong>Connection Active!</strong>
-                <br />
-                You can now access your Emby server from anywhere using your Emby Connect credentials. Your account is
-                synced and ready for seamless streaming.
-              </AlertDescription>
-            </Alert>
-
-            <div className="flex flex-col sm:flex-row gap-3">
               <Button
-                variant="outline"
-                className="ios-button flex-1 bg-transparent"
-                onClick={() => window.open("https://app.emby.media", "_blank")}
+                type="submit"
+                disabled={isConnecting || !serverUrl.trim() || !username.trim()}
+                className="w-full bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-sm"
               >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Open Emby Web App
-              </Button>
-
-              <Button variant="destructive" onClick={handleDisconnect} disabled={isDisconnecting} className="flex-1">
-                {isDisconnecting ? (
+                {isConnecting ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Disconnecting...
+                    Connecting to Server...
                   </>
                 ) : (
                   <>
-                    <Unlink className="h-4 w-4 mr-2" />
-                    Disconnect Account
+                    <Star className="h-4 w-4 mr-2" />
+                    Connect to Emby
                   </>
                 )}
               </Button>
-            </div>
-          </div>
-        )}
+            </form>
 
-        <div className="pt-4 border-t border-purple-100">
-          <h4 className="font-semibold text-foreground mb-2">Benefits of Emby Connect:</h4>
-          <ul className="space-y-1 text-sm text-muted-foreground">
-            <li className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
-              Access your server from anywhere without remembering IP addresses
-            </li>
-            <li className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
-              Automatic server discovery and connection
-            </li>
-            <li className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
-              Seamless experience across all Emby apps and devices
-            </li>
-            <li className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
-              Secure encrypted connection to your media
-            </li>
-          </ul>
-        </div>
-      </CardContent>
-    </Card>
+            <div className="border-t border-white/20 pt-4">
+              <h4 className="text-white font-medium mb-3 flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Connection Requirements:
+              </h4>
+              <ul className="space-y-2 text-sm text-emerald-100">
+                <li className="flex items-start gap-2">
+                  <span className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 mt-0.5">
+                    1
+                  </span>
+                  Your Emby server must be accessible from the internet
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 mt-0.5">
+                    2
+                  </span>
+                  Use HTTPS for secure connections (recommended)
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 mt-0.5">
+                    3
+                  </span>
+                  Ensure your Emby user has appropriate permissions
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 mt-0.5">
+                    4
+                  </span>
+                  Check firewall settings if connection fails
+                </li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Testing Section */}
+      <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200">
+        <CardHeader>
+          <CardTitle className="text-blue-800 flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Test Emby Connection
+          </CardTitle>
+          <CardDescription className="text-blue-600">
+            Generate test credentials to simulate the connection process
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Button
+            onClick={generateTestCredentials}
+            variant="outline"
+            className="border-blue-300 text-blue-700 hover:bg-blue-100 bg-transparent"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Generate Test Credentials
+          </Button>
+
+          {testCredentials.url && (
+            <div className="space-y-3">
+              <div className="p-4 bg-white/60 rounded-lg border border-blue-200">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-blue-800">Server URL:</p>
+                      <p className="text-blue-900 font-mono text-sm">{testCredentials.url}</p>
+                    </div>
+                    <Button
+                      onClick={() => copyTestCredential("url", testCredentials.url)}
+                      variant="ghost"
+                      size="sm"
+                      className="text-blue-600 hover:bg-blue-100"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-blue-800">Username:</p>
+                      <p className="text-blue-900 font-mono text-sm">{testCredentials.username}</p>
+                    </div>
+                    <Button
+                      onClick={() => copyTestCredential("username", testCredentials.username)}
+                      variant="ghost"
+                      size="sm"
+                      className="text-blue-600 hover:bg-blue-100"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-blue-800">Password:</p>
+                      <p className="text-blue-900 font-mono text-sm">{testCredentials.password}</p>
+                    </div>
+                    <Button
+                      onClick={() => copyTestCredential("password", testCredentials.password)}
+                      variant="ghost"
+                      size="sm"
+                      className="text-blue-600 hover:bg-blue-100"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-blue-200">
+                  <Badge className="bg-blue-200 text-blue-800">Test Mode</Badge>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Use these credentials in the form above to test the connection process
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   )
 }

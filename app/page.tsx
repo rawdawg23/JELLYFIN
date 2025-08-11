@@ -23,9 +23,6 @@ import {
   Menu,
   X,
   CreditCard,
-  Smartphone,
-  Monitor,
-  Tablet,
 } from "lucide-react"
 import { jellyfinAPI } from "@/lib/jellyfin-api"
 import { MovieCarousel } from "@/components/movie-carousel"
@@ -55,52 +52,20 @@ function JellyfinStoreContent() {
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [processingPayment, setProcessingPayment] = useState<string | null>(null)
-  const [paypalLoaded, setPaypalLoaded] = useState(false)
-  const [deviceType, setDeviceType] = useState<"mobile" | "tablet" | "desktop">("desktop")
 
   useEffect(() => {
     loadLibraries()
     loadPayPalScript()
-    detectDeviceType()
-
-    // Listen for window resize to update device type
-    const handleResize = () => {
-      detectDeviceType()
-    }
-
-    window.addEventListener("resize", handleResize)
-    return () => window.removeEventListener("resize", handleResize)
   }, [])
 
-  // Detect device type for responsive PayPal integration
-  const detectDeviceType = () => {
-    const width = window.innerWidth
-    if (width < 768) {
-      setDeviceType("mobile")
-    } else if (width < 1024) {
-      setDeviceType("tablet")
-    } else {
-      setDeviceType("desktop")
-    }
-  }
-
-  // Load PayPal SDK with responsive configuration
+  // Load PayPal SDK
   const loadPayPalScript = () => {
-    if (document.getElementById("paypal-sdk")) {
-      setPaypalLoaded(true)
-      return
-    }
+    if (document.getElementById("paypal-sdk")) return
 
     const script = document.createElement("script")
     script.id = "paypal-sdk"
-    script.src = `https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=GBP&intent=capture&components=buttons,marks&disable-funding=credit,card`
+    script.src = `https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=GBP&intent=capture`
     script.async = true
-    script.onload = () => {
-      setPaypalLoaded(true)
-    }
-    script.onerror = () => {
-      console.error("Failed to load PayPal SDK")
-    }
     document.head.appendChild(script)
   }
 
@@ -162,115 +127,82 @@ function JellyfinStoreContent() {
       return
     }
 
-    if (!paypalLoaded) {
-      alert("PayPal is still loading, please try again in a moment.")
+    setProcessingPayment(planType)
+
+    // Check if PayPal SDK is loaded
+    if (typeof window.paypal === "undefined") {
+      alert("PayPal is loading, please try again in a moment.")
+      setProcessingPayment(null)
       return
     }
 
-    setProcessingPayment(planType)
-
     try {
-      // Create responsive PayPal container
-      const paypalContainer = document.createElement("div")
-      paypalContainer.id = `paypal-container-${planType}`
-      paypalContainer.className = "paypal-responsive-container"
+      // Create PayPal payment
+      const paypalButtonContainer = document.createElement("div")
+      paypalButtonContainer.id = `paypal-button-${planType}`
+      document.body.appendChild(paypalButtonContainer)
 
-      // Create overlay for mobile
-      const overlay = document.createElement("div")
-      overlay.className = "paypal-overlay"
-      overlay.innerHTML = `
-        <div class="paypal-modal">
-          <div class="paypal-modal-header">
-            <h3>Complete Payment</h3>
-            <button class="paypal-close-btn" onclick="this.closest('.paypal-overlay').remove(); document.querySelector('#paypal-container-${planType}')?.remove();">×</button>
-          </div>
-          <div class="paypal-modal-content">
-            <div class="payment-details">
-              <div class="plan-info">
-                <h4>OG JELLYFIN ${planType.charAt(0).toUpperCase() + planType.slice(1)} Plan</h4>
-                <div class="price">£${price}/month</div>
-              </div>
-            </div>
-            <div id="paypal-button-${planType}" class="paypal-button-container"></div>
-          </div>
-        </div>
-      `
-
-      document.body.appendChild(overlay)
-      document.body.appendChild(paypalContainer)
-
-      // Configure PayPal button with responsive settings
-      const paypalConfig = {
-        createOrder: (data: any, actions: any) => {
-          return actions.order.create({
-            purchase_units: [
-              {
-                amount: {
-                  value: price.toString(),
-                  currency_code: "GBP",
+      window.paypal
+        .Buttons({
+          createOrder: (data: any, actions: any) => {
+            return actions.order.create({
+              purchase_units: [
+                {
+                  amount: {
+                    value: price.toString(),
+                    currency_code: "GBP",
+                  },
+                  description: `OG JELLYFIN ${planType.charAt(0).toUpperCase() + planType.slice(1)} Plan`,
+                  payee: {
+                    email_address: PAYPAL_MERCHANT_EMAIL,
+                  },
                 },
-                description: `OG JELLYFIN ${planType.charAt(0).toUpperCase() + planType.slice(1)} Plan - Monthly Subscription`,
-                payee: {
-                  email_address: PAYPAL_MERCHANT_EMAIL,
-                },
+              ],
+              application_context: {
+                brand_name: "OG JELLYFIN",
+                landing_page: "BILLING",
+                user_action: "PAY_NOW",
               },
-            ],
-            application_context: {
-              brand_name: "OG JELLYFIN",
-              landing_page: "BILLING",
-              user_action: "PAY_NOW",
-              shipping_preference: "NO_SHIPPING",
-              return_url: window.location.origin + "/payment-success",
-              cancel_url: window.location.origin + "/payment-cancel",
-            },
-          })
-        },
-        onApprove: async (data: any, actions: any) => {
-          try {
-            const order = await actions.order.capture()
+            })
+          },
+          onApprove: async (data: any, actions: any) => {
+            try {
+              const order = await actions.order.capture()
 
-            if (order.status === "COMPLETED") {
-              // Payment successful, create Jellyfin account
-              await createJellyfinAccount(planType, price, order)
-              // Clean up
-              overlay.remove()
-              paypalContainer.remove()
-            } else {
-              throw new Error("Payment not completed")
+              if (order.status === "COMPLETED") {
+                // Payment successful, create Jellyfin account
+                await createJellyfinAccount(planType, price, order)
+              } else {
+                throw new Error("Payment not completed")
+              }
+            } catch (error) {
+              console.error("Payment capture failed:", error)
+              alert("Payment processing failed. Please try again.")
+            } finally {
+              setProcessingPayment(null)
+              document.body.removeChild(paypalButtonContainer)
             }
-          } catch (error) {
-            console.error("Payment capture failed:", error)
-            alert("Payment processing failed. Please try again or contact support.")
-            overlay.remove()
-            paypalContainer.remove()
-          } finally {
+          },
+          onError: (err: any) => {
+            console.error("PayPal error:", err)
+            alert("Payment failed. Please try again.")
             setProcessingPayment(null)
-          }
-        },
-        onError: (err: any) => {
-          console.error("PayPal error:", err)
-          alert("Payment failed. Please try again or contact support.")
-          setProcessingPayment(null)
-          overlay.remove()
-          paypalContainer.remove()
-        },
-        onCancel: () => {
-          setProcessingPayment(null)
-          overlay.remove()
-          paypalContainer.remove()
-        },
-        style: {
-          layout: deviceType === "mobile" ? "vertical" : "horizontal",
-          color: "blue",
-          shape: "rect",
-          label: "paypal",
-          height: deviceType === "mobile" ? 45 : 55,
-          tagline: deviceType !== "mobile",
-        },
-      }
+            document.body.removeChild(paypalButtonContainer)
+          },
+          onCancel: () => {
+            setProcessingPayment(null)
+            document.body.removeChild(paypalButtonContainer)
+          },
+        })
+        .render(`#paypal-button-${planType}`)
 
-      // Render PayPal button
-      window.paypal.Buttons(paypalConfig).render(`#paypal-button-${planType}`)
+      // Trigger the PayPal button click
+      setTimeout(() => {
+        const paypalButton = paypalButtonContainer.querySelector('div[role="button"]') as HTMLElement
+        if (paypalButton) {
+          paypalButton.click()
+        }
+      }, 100)
     } catch (error) {
       console.error("PayPal initialization failed:", error)
       alert("Payment system unavailable. Please try again later.")
@@ -300,7 +232,6 @@ function JellyfinStoreContent() {
           paymentStatus: paymentOrder.status,
           paymentDate: new Date().toISOString(),
           payerEmail: paymentOrder.payer?.email_address,
-          deviceType: deviceType,
         }
 
         setPurchaseData(purchaseData)
@@ -312,7 +243,6 @@ function JellyfinStoreContent() {
           userId: userResult.userId,
           paymentId: paymentOrder.id,
           username: credentials.username,
-          deviceType: deviceType,
         })
       } else {
         throw new Error(userResult.error || "Failed to create account")
@@ -355,7 +285,6 @@ function JellyfinStoreContent() {
         "Basic support",
       ],
       popular: false,
-      deviceIcon: Smartphone,
     },
     {
       name: "Premium",
@@ -370,7 +299,6 @@ function JellyfinStoreContent() {
         "Priority support",
       ],
       popular: true,
-      deviceIcon: Monitor,
     },
     {
       name: "Family",
@@ -385,7 +313,6 @@ function JellyfinStoreContent() {
         "Early access to new features",
       ],
       popular: false,
-      deviceIcon: Tablet,
     },
   ]
 
@@ -625,23 +552,21 @@ function JellyfinStoreContent() {
                       {searchResults.map((item) => (
                         <Card key={item.Id} className="ios-card border-0 overflow-hidden group cursor-pointer">
                           <div className="aspect-[2/3] relative overflow-hidden">
-                            {item.PrimaryImageTag ? (
-                              <img
-                                src={
-                                  jellyfinAPI.getImageUrl(item.Id, "Primary", item.PrimaryImageTag, 300, 450) ||
-                                  "/placeholder.svg" ||
-                                  "/placeholder.svg"
-                                }
-                                alt={item.Name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                loading="lazy"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement
-                                  target.style.display = "none"
-                                  target.nextElementSibling?.classList.remove("hidden")
-                                }}
-                              />
-                            ) : null}
+                            <img
+                              src={
+                                jellyfinAPI.getImageUrl(item.Id, "Primary", item.PrimaryImageTag, 300, 450) ||
+                                "/placeholder.svg"
+                              }
+                              alt={item.Name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              loading="lazy"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement
+                                target.style.display = "none"
+                                const placeholder = target.nextElementSibling
+                                if (placeholder) placeholder.classList.remove("hidden")
+                              }}
+                            />
                             <div className="hidden w-full h-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center">
                               <div className="text-center text-white p-2 sm:p-4">
                                 <Play className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2" />
@@ -726,110 +651,75 @@ function JellyfinStoreContent() {
                   <Shield className="h-4 w-4" />
                   <span>Secure PayPal payment processing</span>
                 </div>
-
-                {/* Device Type Indicator */}
-                <div className="flex items-center justify-center gap-2 text-xs text-purple-600 bg-purple-50 rounded-full px-4 py-2 max-w-fit mx-auto">
-                  {deviceType === "mobile" && <Smartphone className="h-3 w-3" />}
-                  {deviceType === "tablet" && <Tablet className="h-3 w-3" />}
-                  {deviceType === "desktop" && <Monitor className="h-3 w-3" />}
-                  <span>Optimized for {deviceType}</span>
-                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto px-4">
-                {subscriptionPlans.map((plan) => {
-                  const DeviceIcon = plan.deviceIcon
-                  return (
-                    <Card
-                      key={plan.name}
-                      className={`ios-card border-0 relative overflow-hidden transition-all duration-300 ${
-                        plan.popular ? "ring-2 ring-purple-500 shadow-xl scale-105" : ""
-                      } ${deviceType === "mobile" ? "hover:scale-102" : "hover:scale-105"}`}
-                    >
-                      {plan.popular && (
-                        <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-center py-2 text-sm font-medium">
-                          Most Popular
-                        </div>
-                      )}
-                      <CardHeader className={plan.popular ? "pt-12" : ""}>
-                        <div className="text-center space-y-2">
-                          <div className="flex items-center justify-center gap-2 mb-2">
-                            <DeviceIcon className="h-6 w-6 text-purple-600" />
-                            <CardTitle className="text-xl sm:text-2xl font-bold text-foreground">{plan.name}</CardTitle>
+                {subscriptionPlans.map((plan) => (
+                  <Card
+                    key={plan.name}
+                    className={`ios-card border-0 relative overflow-hidden ${
+                      plan.popular ? "ring-2 ring-purple-500 shadow-xl scale-105" : ""
+                    }`}
+                  >
+                    {plan.popular && (
+                      <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-center py-2 text-sm font-medium">
+                        Most Popular
+                      </div>
+                    )}
+                    <CardHeader className={plan.popular ? "pt-12" : ""}>
+                      <div className="text-center space-y-2">
+                        <CardTitle className="text-xl sm:text-2xl font-bold text-foreground">{plan.name}</CardTitle>
+                        <div className="space-y-1">
+                          <div className="text-3xl sm:text-4xl font-bold text-purple-600">
+                            £{plan.price}
+                            <span className="text-base sm:text-lg text-muted-foreground">/month</span>
                           </div>
-                          <div className="space-y-1">
-                            <div className="text-3xl sm:text-4xl font-bold text-purple-600">
-                              £{plan.price}
-                              <span className="text-base sm:text-lg text-muted-foreground">/month</span>
+                          <CardDescription>Billed monthly in {plan.currency}</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <ul className="space-y-3">
+                        {plan.features.map((feature, index) => (
+                          <li key={index} className="flex items-center gap-3">
+                            <div className="w-5 h-5 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
+                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
                             </div>
-                            <CardDescription>Billed monthly in {plan.currency}</CardDescription>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-6">
-                        <ul className="space-y-3">
-                          {plan.features.map((feature, index) => (
-                            <li key={index} className="flex items-center gap-3">
-                              <div className="w-5 h-5 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
-                                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                    clipRule="evenodd"
-                                  />
-                                </svg>
-                              </div>
-                              <span className="text-foreground text-sm sm:text-base">{feature}</span>
-                            </li>
-                          ))}
-                        </ul>
-
-                        {/* Responsive Payment Button */}
-                        <div className="space-y-3">
-                          <Button
-                            onClick={() => handlePayPalPayment(plan.name.toLowerCase(), plan.price)}
-                            disabled={processingPayment === plan.name.toLowerCase() || !paypalLoaded}
-                            className={`w-full ios-button text-white border-0 ${plan.popular ? "shadow-lg" : ""} ${
-                              processingPayment === plan.name.toLowerCase() ? "opacity-50 cursor-not-allowed" : ""
-                            } ${deviceType === "mobile" ? "h-12 text-base" : "h-14 text-lg"}`}
-                          >
-                            {processingPayment === plan.name.toLowerCase() ? (
-                              <>
-                                <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
-                                Processing...
-                              </>
-                            ) : !paypalLoaded ? (
-                              <>
-                                <div className="animate-pulse w-4 h-4 bg-white/50 rounded mr-2" />
-                                Loading PayPal...
-                              </>
-                            ) : (
-                              <>
-                                <CreditCard className="h-4 w-4 mr-2" />
-                                <span className="hidden sm:inline">Pay with PayPal - £{plan.price}</span>
-                                <span className="sm:hidden">PayPal £{plan.price}</span>
-                              </>
-                            )}
-                          </Button>
-
-                          {/* Mobile-specific payment info */}
-                          {deviceType === "mobile" && (
-                            <div className="text-center text-xs text-muted-foreground">
-                              <div className="flex items-center justify-center gap-1">
-                                <Shield className="h-3 w-3" />
-                                <span>Secure mobile payment</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="text-center text-xs text-muted-foreground">
-                          Account created instantly after payment
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
+                            <span className="text-foreground text-sm sm:text-base">{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <Button
+                        onClick={() => handlePayPalPayment(plan.name.toLowerCase(), plan.price)}
+                        disabled={processingPayment === plan.name.toLowerCase()}
+                        className={`w-full ios-button text-white border-0 ${plan.popular ? "shadow-lg" : ""} ${
+                          processingPayment === plan.name.toLowerCase() ? "opacity-50 cursor-not-allowed" : ""
+                        }`}
+                      >
+                        {processingPayment === plan.name.toLowerCase() ? (
+                          <>
+                            <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard className="h-4 w-4 mr-2" />
+                            Pay with PayPal - £{plan.price}
+                          </>
+                        )}
+                      </Button>
+                      <div className="text-center text-xs text-muted-foreground">
+                        Account created instantly after payment
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
 
               <div className="text-center space-y-4 max-w-2xl mx-auto px-4">
@@ -869,11 +759,6 @@ function JellyfinStoreContent() {
                     All payments are processed securely through PayPal. Your Jellyfin account will be created
                     automatically after successful payment.
                   </p>
-                  {deviceType === "mobile" && (
-                    <p className="text-xs text-blue-600 mt-2">
-                      Optimized for mobile payments with touch-friendly interface
-                    </p>
-                  )}
                 </div>
               </div>
             </TabsContent>

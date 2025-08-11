@@ -1,312 +1,196 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { Card, CardContent } from "@/components/ui/card"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ChevronLeft, ChevronRight, Play, Star, Calendar, Clock, Sparkles, Film } from "lucide-react"
-import { jellyfinAPI } from "@/lib/jellyfin-api"
-import { formatUKDate, formatUKDateTime, getRelativeTime, isNewRelease } from "@/lib/date-utils"
+import { ChevronLeft, ChevronRight, Play, Star, Clock, Calendar } from "lucide-react"
 
-interface MovieCarouselProps {
+interface Movie {
+  id: string
   title: string
-  subtitle?: string
+  year: number
+  genre: string[]
+  rating: number
+  duration: string
+  poster: string
+  backdrop: string
+  description: string
 }
 
-export function MovieCarousel({ title, subtitle }: MovieCarouselProps) {
-  const [movies, setMovies] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+const movies: Movie[] = [
+  {
+    id: "1",
+    title: "The Grand Adventure",
+    year: 2023,
+    genre: ["Action", "Adventure"],
+    rating: 8.5,
+    duration: "2h 15m",
+    poster: "/placeholder.png?height=400&width=300&text=Movie+Poster+1",
+    backdrop: "/placeholder.png?height=600&width=1200&text=Movie+Backdrop+1",
+    description: "An epic journey through uncharted territories filled with danger and wonder.",
+  },
+  {
+    id: "2",
+    title: "Mystery of the Lost City",
+    year: 2023,
+    genre: ["Mystery", "Thriller"],
+    rating: 7.8,
+    duration: "1h 58m",
+    poster: "/placeholder.png?height=400&width=300&text=Movie+Poster+2",
+    backdrop: "/placeholder.png?height=600&width=1200&text=Movie+Backdrop+2",
+    description: "A detective uncovers ancient secrets in a forgotten civilization.",
+  },
+  {
+    id: "3",
+    title: "Space Odyssey 2024",
+    year: 2024,
+    genre: ["Sci-Fi", "Drama"],
+    rating: 9.1,
+    duration: "2h 42m",
+    poster: "/placeholder.png?height=400&width=300&text=Movie+Poster+3",
+    backdrop: "/placeholder.png?height=600&width=1200&text=Movie+Backdrop+3",
+    description: "Humanity's greatest journey to the stars and the challenges that await.",
+  },
+  {
+    id: "4",
+    title: "The Comedy Club",
+    year: 2023,
+    genre: ["Comedy", "Romance"],
+    rating: 7.2,
+    duration: "1h 35m",
+    poster: "/placeholder.png?height=400&width=300&text=Movie+Poster+4",
+    backdrop: "/placeholder.png?height=600&width=1200&text=Movie+Backdrop+4",
+    description: "Love and laughter collide in this heartwarming romantic comedy.",
+  },
+  {
+    id: "5",
+    title: "Horror Nights",
+    year: 2023,
+    genre: ["Horror", "Thriller"],
+    rating: 6.9,
+    duration: "1h 47m",
+    poster: "/placeholder.png?height=400&width=300&text=Movie+Poster+5",
+    backdrop: "/placeholder.png?height=600&width=1200&text=Movie+Backdrop+5",
+    description: "A spine-chilling tale that will keep you on the edge of your seat.",
+  },
+]
+
+export function MovieCarousel() {
   const [currentIndex, setCurrentIndex] = useState(0)
-  const carouselRef = useRef<HTMLDivElement>(null)
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true)
 
   useEffect(() => {
-    const loadLatestMovies = async () => {
-      setIsLoading(true)
-      try {
-        // Get all items and filter for movies, then sort by date added
-        const allItems = await jellyfinAPI.getAllLibraryItems(100)
-        const latestMovies = allItems
-          .filter((item) => item.Type === "Movie")
-          .sort((a, b) => {
-            const dateA = new Date(a.DateCreated || a.PremiereDate || 0)
-            const dateB = new Date(b.DateCreated || b.PremiereDate || 0)
-            return dateB.getTime() - dateA.getTime()
-          })
-          .slice(0, 20) // Get top 20 latest movies
+    if (!isAutoPlaying) return
 
-        setMovies(latestMovies)
-      } catch (error) {
-        console.error("Error loading latest movies:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
+    const interval = setInterval(() => {
+      setCurrentIndex((prevIndex) => (prevIndex + 1) % movies.length)
+    }, 5000)
 
-    loadLatestMovies()
-  }, [])
+    return () => clearInterval(interval)
+  }, [isAutoPlaying])
 
-  const scrollToIndex = (index: number) => {
-    if (carouselRef.current) {
-      const cardWidth = 280 // Width of each card including gap
-      const scrollPosition = index * cardWidth
-      carouselRef.current.scrollTo({
-        left: scrollPosition,
-        behavior: "smooth",
-      })
-      setCurrentIndex(index)
-    }
+  const nextMovie = () => {
+    setCurrentIndex((prevIndex) => (prevIndex + 1) % movies.length)
+    setIsAutoPlaying(false)
   }
 
-  const scrollLeft = () => {
-    const newIndex = Math.max(0, currentIndex - 1)
-    scrollToIndex(newIndex)
+  const prevMovie = () => {
+    setCurrentIndex((prevIndex) => (prevIndex - 1 + movies.length) % movies.length)
+    setIsAutoPlaying(false)
   }
 
-  const scrollRight = () => {
-    const maxIndex = Math.max(0, movies.length - 4) // Show 4 cards at a time
-    const newIndex = Math.min(maxIndex, currentIndex + 1)
-    scrollToIndex(newIndex)
-  }
-
-  const formatRuntime = (ticks: number) => {
-    if (!ticks) return ""
-    const minutes = Math.round(ticks / 600000000)
-    const hours = Math.floor(minutes / 60)
-    const remainingMinutes = minutes % 60
-    return hours > 0 ? `${hours}h ${remainingMinutes}m` : `${minutes}m`
-  }
-
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="h-8 w-48 bg-purple-200 rounded-lg animate-pulse"></div>
-            {subtitle && <div className="h-4 w-32 bg-purple-100 rounded mt-2 animate-pulse"></div>}
-          </div>
-        </div>
-        <div className="flex gap-4 overflow-hidden">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="flex-shrink-0 w-64">
-              <div className="aspect-[2/3] bg-purple-200 rounded-2xl animate-pulse"></div>
-              <div className="mt-3 space-y-2">
-                <div className="h-4 bg-purple-200 rounded animate-pulse"></div>
-                <div className="h-3 bg-purple-100 rounded animate-pulse w-3/4"></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
-  if (movies.length === 0) {
-    return null
-  }
+  const currentMovie = movies[currentIndex]
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-            {title}
-          </h2>
-          {subtitle && <p className="text-muted-foreground mt-1">{subtitle}</p>}
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={scrollLeft}
-            disabled={currentIndex === 0}
-            className="ios-button bg-white/80 backdrop-blur-md border-purple-200 hover:bg-purple-50"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={scrollRight}
-            disabled={currentIndex >= movies.length - 4}
-            className="ios-button bg-white/80 backdrop-blur-md border-purple-200 hover:bg-purple-50"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+    <div className="relative w-full h-[500px] overflow-hidden rounded-2xl">
+      {/* Background Image */}
+      <div
+        className="absolute inset-0 bg-cover bg-center transition-all duration-700"
+        style={{ backgroundImage: `url(${currentMovie.backdrop})` }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
+      </div>
+
+      {/* Content */}
+      <div className="relative z-10 h-full flex items-center">
+        <div className="container mx-auto px-6">
+          <div className="max-w-2xl">
+            <div className="flex items-center gap-2 mb-4">
+              {currentMovie.genre.map((g) => (
+                <Badge key={g} className="ios-badge bg-white/20 text-white border-0 backdrop-blur-sm">
+                  {g}
+                </Badge>
+              ))}
+            </div>
+
+            <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 leading-tight">{currentMovie.title}</h1>
+
+            <div className="flex items-center gap-6 text-white/80 mb-6">
+              <div className="flex items-center gap-1">
+                <Calendar className="h-4 w-4" />
+                <span>{currentMovie.year}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Clock className="h-4 w-4" />
+                <span>{currentMovie.duration}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                <span>{currentMovie.rating}</span>
+              </div>
+            </div>
+
+            <p className="text-lg text-white/90 mb-8 leading-relaxed">{currentMovie.description}</p>
+
+            <div className="flex items-center gap-4">
+              <Button className="ios-button text-white border-0 px-8 py-3 text-lg">
+                <Play className="h-5 w-5 mr-2" />
+                Watch Now
+              </Button>
+              <Button
+                variant="outline"
+                className="bg-white/20 border-white/30 text-white hover:bg-white/30 backdrop-blur-sm px-8 py-3 text-lg"
+              >
+                More Info
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="relative">
-        <div
-          ref={carouselRef}
-          className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth pb-4"
-          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-        >
-          {movies.map((movie, index) => {
-            // Enhanced image URL generation with fallbacks
-            const getMovieImage = (movie: any) => {
-              // Try Primary image first (movie poster)
-              if (movie.PrimaryImageTag) {
-                return jellyfinAPI.getImageUrl(movie.Id, "Primary", movie.PrimaryImageTag)
-              }
+      {/* Navigation Arrows */}
+      <Button
+        onClick={prevMovie}
+        variant="ghost"
+        size="icon"
+        className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-black/20 hover:bg-black/40 text-white backdrop-blur-sm"
+      >
+        <ChevronLeft className="h-6 w-6" />
+      </Button>
 
-              // Try Backdrop image as fallback
-              if (movie.BackdropImageTags && movie.BackdropImageTags.length > 0) {
-                return jellyfinAPI.getImageUrl(movie.Id, "Backdrop", movie.BackdropImageTags[0])
-              }
+      <Button
+        onClick={nextMovie}
+        variant="ghost"
+        size="icon"
+        className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-black/20 hover:bg-black/40 text-white backdrop-blur-sm"
+      >
+        <ChevronRight className="h-6 w-6" />
+      </Button>
 
-              // Try Thumb image as fallback
-              if (movie.ImageTags && movie.ImageTags.Thumb) {
-                return jellyfinAPI.getImageUrl(movie.Id, "Thumb", movie.ImageTags.Thumb)
-              }
-
-              // Use placeholder as final fallback
-              return "/placeholder.svg?height=400&width=300&text=" + encodeURIComponent(movie.Name || "Movie")
-            }
-
-            const imageUrl = getMovieImage(movie)
-            const releaseDate = movie.PremiereDate || movie.DateCreated
-            const isNew = isNewRelease(releaseDate)
-
-            return (
-              <Card
-                key={movie.Id}
-                className="flex-shrink-0 w-64 ios-card border-0 group hover:shadow-2xl transition-all duration-500 cursor-pointer transform hover:scale-105"
-                style={{
-                  animationDelay: `${index * 100}ms`,
-                }}
-              >
-                <div className="aspect-[2/3] relative overflow-hidden rounded-t-2xl bg-gradient-to-br from-purple-100 to-indigo-100">
-                  <img
-                    src={imageUrl || "/placeholder.svg"}
-                    alt={movie.Name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-in-out"
-                    loading="lazy"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement
-                      // Try backdrop image as fallback
-                      if (
-                        movie.BackdropImageTags &&
-                        movie.BackdropImageTags.length > 0 &&
-                        !target.src.includes("Backdrop")
-                      ) {
-                        target.src = jellyfinAPI.getImageUrl(movie.Id, "Backdrop", movie.BackdropImageTags[0])
-                      } else {
-                        // Final fallback to placeholder with movie name
-                        target.src =
-                          "/placeholder.svg?height=400&width=300&text=" + encodeURIComponent(movie.Name || "Movie")
-                      }
-                    }}
-                  />
-
-                  {/* Loading placeholder while image loads */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-200 to-indigo-200 flex items-center justify-center opacity-0 group-hover:opacity-0 transition-opacity duration-300">
-                    <div className="text-center p-4">
-                      <Film className="h-8 w-8 text-purple-400 mx-auto mb-2" />
-                      <p className="text-sm text-purple-600 font-medium">{movie.Name}</p>
-                    </div>
-                  </div>
-
-                  {/* Rest of the overlay content remains the same */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500">
-                    <div className="absolute bottom-4 left-4 right-4">
-                      <Button
-                        size="sm"
-                        className="ios-button text-white border-0 w-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500"
-                      >
-                        <Play className="h-4 w-4 mr-2" />
-                        Play Now
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Badges remain the same */}
-                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-500">
-                    <Badge className="ios-badge text-white bg-black/50 backdrop-blur-md border-0">
-                      {movie.ProductionYear}
-                    </Badge>
-                  </div>
-
-                  {isNew && (
-                    <div className="absolute top-3 left-3">
-                      <Badge className="ios-badge text-white bg-gradient-to-r from-green-500 to-emerald-600 border-0 flex items-center gap-1 animate-pulse">
-                        <Sparkles className="h-3 w-3 fill-current" />
-                        NEW
-                      </Badge>
-                    </div>
-                  )}
-
-                  {movie.CommunityRating && (
-                    <div className="absolute top-12 left-3 opacity-0 group-hover:opacity-100 transition-all duration-500">
-                      <Badge className="ios-badge text-white bg-yellow-500/90 backdrop-blur-md border-0 flex items-center gap-1">
-                        <Star className="h-3 w-3 fill-current" />
-                        {movie.CommunityRating.toFixed(1)}
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-
-                {/* Card content remains the same */}
-                <CardContent className="p-4">
-                  <h3 className="font-semibold text-foreground group-hover:text-purple-600 transition-colors duration-500 line-clamp-2 mb-2">
-                    {movie.Name}
-                  </h3>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Calendar className="h-3 w-3 text-purple-400" />
-                      <div className="flex flex-col">
-                        <span className="font-medium text-purple-600">{formatUKDate(releaseDate)}</span>
-                        <span className="text-xs">{getRelativeTime(releaseDate)}</span>
-                      </div>
-                    </div>
-
-                    {movie.RunTimeTicks && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Clock className="h-3 w-3 text-purple-400" />
-                        <span>{formatRuntime(movie.RunTimeTicks)}</span>
-                      </div>
-                    )}
-
-                    {movie.Genres && movie.Genres.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {movie.Genres.slice(0, 2).map((genre: string, genreIndex: number) => (
-                          <Badge key={genreIndex} className="ios-badge text-xs bg-purple-100 text-purple-700 border-0">
-                            {genre}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-
-                    {movie.Overview && (
-                      <p className="text-xs text-muted-foreground line-clamp-3 mt-2">{movie.Overview}</p>
-                    )}
-
-                    {movie.DateCreated && (
-                      <div className="text-xs text-purple-500 mt-2 border-t border-purple-100 pt-2">
-                        <span className="font-medium">Added: </span>
-                        {formatUKDateTime(movie.DateCreated)}
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-
-        {/* Scroll indicators */}
-        <div className="flex justify-center mt-4 gap-1">
-          {Array.from({ length: Math.ceil(movies.length / 4) }).map((_, index) => (
-            <button
-              key={index}
-              onClick={() => scrollToIndex(index * 4)}
-              className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                Math.floor(currentIndex / 4) === index
-                  ? "bg-gradient-to-r from-purple-500 to-indigo-500 w-6"
-                  : "bg-purple-200 hover:bg-purple-300"
-              }`}
-            />
-          ))}
-        </div>
+      {/* Dots Indicator */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+        {movies.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => {
+              setCurrentIndex(index)
+              setIsAutoPlaying(false)
+            }}
+            className={`w-3 h-3 rounded-full transition-all duration-300 ${
+              index === currentIndex ? "bg-white scale-125" : "bg-white/50 hover:bg-white/75"
+            }`}
+          />
+        ))}
       </div>
     </div>
   )
