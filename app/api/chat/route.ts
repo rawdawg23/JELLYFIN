@@ -6,11 +6,15 @@ export async function GET(request: NextRequest) {
   const action = searchParams.get("action")
 
   if (action === "messages") {
-    return Response.json({ messages: chatStore.getMessages() })
+    return new Response(JSON.stringify({ messages: chatStore.getMessages() }), {
+      headers: { "Content-Type": "application/json" },
+    })
   }
 
   if (action === "users") {
-    return Response.json({ users: chatStore.getOnlineUsers() })
+    return new Response(JSON.stringify({ users: chatStore.getOnlineUsers() }), {
+      headers: { "Content-Type": "application/json" },
+    })
   }
 
   // Server-Sent Events for real-time updates
@@ -66,27 +70,41 @@ export async function POST(request: NextRequest) {
         timestamp: new Date().toISOString(),
       }
       chatStore.addMessage(message)
-      return Response.json({ success: true, message })
+      return new Response(JSON.stringify({ success: true, message }), {
+        headers: { "Content-Type": "application/json" },
+      })
     }
 
     if (action === "user_online") {
       chatStore.addOnlineUser(data.user)
-      return Response.json({ success: true })
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { "Content-Type": "application/json" },
+      })
     }
 
     if (action === "user_offline") {
       chatStore.removeOnlineUser(data.userId)
-      return Response.json({ success: true })
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { "Content-Type": "application/json" },
+      })
     }
 
     if (action === "user_activity") {
       chatStore.updateUserActivity(data.userId)
-      return Response.json({ success: true })
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { "Content-Type": "application/json" },
+      })
     }
 
-    return Response.json({ error: "Invalid action" }, { status: 400 })
+    return new Response(JSON.stringify({ error: "Invalid action" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })
   } catch (error) {
     console.error("Chat API error:", error)
-    return Response.json({ error: "Internal server error" }, { status: 500 })
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    })
   }
 }

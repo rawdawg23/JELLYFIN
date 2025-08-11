@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "target": "es5",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "target": "ES2022", // Updated target to ES2022 for better Web API support
+    "lib": ["dom", "dom.iterable", "esnext", "webworker"], // Added webworker for Response.json support
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
