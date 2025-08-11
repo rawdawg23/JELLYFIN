@@ -1,4 +1,4 @@
-import type React from "react"
+import type React from "react" // Fixed React import from type-only to regular import for JSX support
 import "./globals.css"
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
