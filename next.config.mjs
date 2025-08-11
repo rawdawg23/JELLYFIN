@@ -7,10 +7,10 @@ const __dirname = path.dirname(__filename);
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false, // Enable ESLint to catch real issues
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false, // Enable TypeScript checking to catch real issues
   },
   images: {
     remotePatterns: [
@@ -47,6 +47,9 @@ const nextConfig = {
       assert: false,
       os: false,
       path: false,
+      buffer: false,
+      util: false,
+      events: false,
     };
 
     // Handle Three.js modules properly
@@ -55,17 +58,21 @@ const nextConfig = {
       use: ['raw-loader'],
     });
 
-    if (!isServer) {
-      config.resolve.alias = {
-        ...config.resolve.alias,
-        '@': path.resolve(__dirname),
-      };
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': path.resolve(__dirname),
+    };
+
+    if (isServer) {
+      config.externals = [...(config.externals || []), 'react', 'react-dom'];
     }
 
     return config;
   },
   output: 'standalone',
   poweredByHeader: false,
+  trailingSlash: false,
+  generateEtags: false,
 };
 
 export default nextConfig;
