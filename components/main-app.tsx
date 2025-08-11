@@ -18,6 +18,7 @@ import { ResponsiveMarketplace } from "@/components/responsive-marketplace"
 import { MessagingSystem } from "@/components/messaging/messaging-system"
 import { SellerDashboard } from "@/components/seller/seller-dashboard"
 import { AdminDashboard } from "@/components/admin/admin-dashboard"
+import { LiveChatWidget } from "@/components/live-chat-widget"
 import { useAuth } from "@/providers/auth-provider"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -252,6 +253,8 @@ export function MainApp() {
 
           <div className="flex-1 px-4 sm:px-6 py-4 sm:py-6">{renderContent()}</div>
         </main>
+
+        <LiveChatWidget />
       </div>
     </SidebarProvider>
   )

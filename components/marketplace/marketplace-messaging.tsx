@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Send, Paperclip, Smile, Phone, Video, MoreVertical, Shield, Star } from "lucide-react"
+import { Send, Paperclip, Smile, Phone, Video, MoreVertical, Shield, Star, MessageSquare } from "lucide-react"
 import { useAuth } from "@/providers/auth-provider"
 
 interface Message {
@@ -31,7 +31,7 @@ export function MarketplaceMessaging({ isOpen, onClose, sellerId, sellerName }: 
     {
       id: "1",
       senderId: sellerId,
-      content: "Hello! Thanks for your interest in my item. How can I help you today?",
+      content: `Hello! Thanks for your interest in my marketplace items. I'm ${sellerName} and I'm here to help you with any questions about my products. How can I assist you today?`,
       timestamp: new Date(Date.now() - 10 * 60 * 1000),
       type: "text",
       read: true,
@@ -39,6 +39,7 @@ export function MarketplaceMessaging({ isOpen, onClose, sellerId, sellerName }: 
   ])
   const [newMessage, setNewMessage] = useState("")
   const [isTyping, setIsTyping] = useState(false)
+  const [isSending, setIsSending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -49,8 +50,10 @@ export function MarketplaceMessaging({ isOpen, onClose, sellerId, sellerName }: 
     scrollToBottom()
   }, [messages])
 
-  const handleSendMessage = () => {
-    if (!newMessage.trim() || !user) return
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !user || isSending) return
+
+    setIsSending(true)
 
     const message: Message = {
       id: Date.now().toString(),
@@ -64,20 +67,32 @@ export function MarketplaceMessaging({ isOpen, onClose, sellerId, sellerName }: 
     setMessages([...messages, message])
     setNewMessage("")
 
-    // Simulate seller typing and response
-    setIsTyping(true)
-    setTimeout(() => {
-      setIsTyping(false)
-      const sellerResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        senderId: sellerId,
-        content: "Thanks for your message! I'll get back to you shortly with more details.",
-        timestamp: new Date(),
-        type: "text",
-        read: false,
-      }
-      setMessages((prev) => [...prev, sellerResponse])
-    }, 2000)
+    try {
+      console.log(`Sending message to seller ${sellerId}:`, newMessage)
+
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      setMessages((prev) => prev.map((msg) => (msg.id === message.id ? { ...msg, read: true } : msg)))
+
+      setIsTyping(true)
+      setTimeout(() => {
+        setIsTyping(false)
+        const sellerResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          senderId: sellerId,
+          content:
+            "Thanks for your message! I'll get back to you with more details about the item. Feel free to ask any specific questions about pricing, condition, or availability.",
+          timestamp: new Date(),
+          type: "text",
+          read: false,
+        }
+        setMessages((prev) => [...prev, sellerResponse])
+      }, 2000)
+    } catch (error) {
+      console.error("Failed to send message:", error)
+    } finally {
+      setIsSending(false)
+    }
   }
 
   const formatTime = (date: Date) => {
@@ -108,12 +123,22 @@ export function MarketplaceMessaging({ isOpen, onClose, sellerId, sellerName }: 
   if (!user) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Sign In Required</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              Message Seller
+            </DialogTitle>
           </DialogHeader>
-          <p>Please sign in to message sellers.</p>
-          <Button onClick={onClose}>Close</Button>
+          <div className="text-center py-6">
+            <p className="text-muted-foreground mb-4">Please sign in to start messaging sellers and make purchases.</p>
+            <Button
+              onClick={onClose}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            >
+              Close
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     )
@@ -132,12 +157,13 @@ export function MarketplaceMessaging({ isOpen, onClose, sellerId, sellerName }: 
               </Avatar>
               <div>
                 <DialogTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
                   {sellerName}
                   <Shield className="h-4 w-4 text-blue-500" />
                 </DialogTitle>
                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span>Online</span>
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span>Online • Marketplace Seller</span>
                   <span>•</span>
                   <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                   <span>4.9</span>
@@ -145,13 +171,13 @@ export function MarketplaceMessaging({ isOpen, onClose, sellerId, sellerName }: 
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" className="hover:bg-purple-500/10">
+              <Button variant="ghost" size="sm" className="hover:bg-purple-500/10" title="Voice Call">
                 <Phone className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="hover:bg-purple-500/10">
+              <Button variant="ghost" size="sm" className="hover:bg-purple-500/10" title="Video Call">
                 <Video className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="hover:bg-purple-500/10">
+              <Button variant="ghost" size="sm" className="hover:bg-purple-500/10" title="More Options">
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </div>
@@ -233,12 +259,12 @@ export function MarketplaceMessaging({ isOpen, onClose, sellerId, sellerName }: 
         {/* Input */}
         <div className="p-4 border-t border-purple-500/20 bg-background/50 backdrop-blur-sm">
           <div className="flex items-end gap-2">
-            <Button variant="ghost" size="sm" className="hover:bg-purple-500/10">
+            <Button variant="ghost" size="sm" className="hover:bg-purple-500/10" title="Attach File">
               <Paperclip className="h-4 w-4" />
             </Button>
             <div className="flex-1 relative">
               <Textarea
-                placeholder="Type your message..."
+                placeholder={`Message ${sellerName} about their marketplace items...`}
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyPress={(e) => {
@@ -249,21 +275,28 @@ export function MarketplaceMessaging({ isOpen, onClose, sellerId, sellerName }: 
                 }}
                 className="min-h-[40px] max-h-[120px] resize-none bg-background/50 border-purple-500/20 focus:border-purple-400 pr-10"
                 rows={1}
+                disabled={isSending}
               />
-              <Button variant="ghost" size="sm" className="absolute right-1 bottom-1 hover:bg-purple-500/10">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-1 bottom-1 hover:bg-purple-500/10"
+                title="Add Emoji"
+              >
                 <Smile className="h-4 w-4" />
               </Button>
             </div>
             <Button
               onClick={handleSendMessage}
-              disabled={!newMessage.trim()}
+              disabled={!newMessage.trim() || isSending}
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              title="Send Message"
             >
               <Send className="h-4 w-4" />
             </Button>
           </div>
           <div className="text-xs text-muted-foreground mt-2 text-center">
-            Press Enter to send, Shift+Enter for new line
+            {isSending ? "Sending message..." : "Press Enter to send, Shift+Enter for new line"}
           </div>
         </div>
       </DialogContent>
