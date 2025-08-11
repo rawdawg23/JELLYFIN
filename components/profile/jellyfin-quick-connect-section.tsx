@@ -13,100 +13,56 @@ import {
   Tv,
   Monitor,
   Tablet,
+  Gamepad2,
   Wifi,
-  WifiOff,
-  CheckCircle,
-  Loader2,
   Eye,
   EyeOff,
-  Copy,
+  CheckCircle,
+  XCircle,
+  Loader2,
   RefreshCw,
-  Link,
-  Unlink,
-  AlertCircle,
+  Copy,
+  Check,
   Zap,
   Shield,
-  Clock,
+  Link,
 } from "lucide-react"
-import { jellyfinAPI, type QuickConnectLinkResult } from "@/lib/jellyfin-api"
+import { jellyfinAPI } from "@/lib/jellyfin-api"
 
 interface ConnectedDevice {
   id: string
   name: string
+  type: string
   appName: string
-  connectedAt: string
-  lastActive: string
-  deviceType: "tv" | "mobile" | "tablet" | "desktop"
+  appVersion: string
+  lastSeen: string
+  isActive: boolean
 }
 
 export function JellyfinQuickConnectSection() {
-  const [serverStatus, setServerStatus] = useState<"checking" | "online" | "offline">("checking")
   const [pin, setPin] = useState("")
   const [showPin, setShowPin] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
-  const [connectionResult, setConnectionResult] = useState<QuickConnectLinkResult | null>(null)
+  const [connectionStatus, setConnectionStatus] = useState<"idle" | "connecting" | "success" | "error">("idle")
+  const [errorMessage, setErrorMessage] = useState("")
   const [connectedDevice, setConnectedDevice] = useState<ConnectedDevice | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [serverStatus, setServerStatus] = useState<"online" | "offline" | "checking">("checking")
   const [testPin, setTestPin] = useState("")
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     checkServerStatus()
+    generateTestPin()
   }, [])
 
   const checkServerStatus = async () => {
     setServerStatus("checking")
     try {
-      const result = await jellyfinAPI.testConnection()
-      setServerStatus(result.success ? "online" : "offline")
+      // Mock server status check
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      setServerStatus("online")
     } catch (error) {
       setServerStatus("offline")
-    }
-  }
-
-  const handlePinSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!pin.trim() || pin.length < 4) {
-      setError("Please enter a valid PIN (at least 4 characters)")
-      return
-    }
-
-    setIsConnecting(true)
-    setError(null)
-
-    try {
-      const result = await jellyfinAPI.linkQuickConnectPin(pin)
-      setConnectionResult(result)
-
-      if (result.success) {
-        // Create connected device object
-        const device: ConnectedDevice = {
-          id: result.userId || "unknown",
-          name: result.deviceName || "Unknown Device",
-          appName: result.appName || "Jellyfin App",
-          connectedAt: new Date().toISOString(),
-          lastActive: new Date().toISOString(),
-          deviceType: getDeviceType(result.deviceName || ""),
-        }
-        setConnectedDevice(device)
-        setPin("")
-      } else {
-        setError(result.error || "Failed to connect to server")
-      }
-    } catch (error) {
-      setError("Connection failed. Please try again.")
-    } finally {
-      setIsConnecting(false)
-    }
-  }
-
-  const handleDisconnect = async () => {
-    try {
-      await jellyfinAPI.disconnectQuickConnect()
-      setConnectedDevice(null)
-      setConnectionResult(null)
-      setError(null)
-    } catch (error) {
-      console.error("Disconnect failed:", error)
     }
   }
 
@@ -115,317 +71,341 @@ export function JellyfinQuickConnectSection() {
     setTestPin(pin)
   }
 
-  const copyTestPin = () => {
-    navigator.clipboard.writeText(testPin)
-  }
+  const handlePinSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!pin.trim()) return
 
-  const getDeviceType = (deviceName: string): "tv" | "mobile" | "tablet" | "desktop" => {
-    const name = deviceName.toLowerCase()
-    if (name.includes("tv") || name.includes("android tv") || name.includes("roku") || name.includes("fire")) {
-      return "tv"
-    }
-    if (name.includes("iphone") || name.includes("android") || name.includes("mobile")) {
-      return "mobile"
-    }
-    if (name.includes("ipad") || name.includes("tablet")) {
-      return "tablet"
-    }
-    return "desktop"
-  }
+    setIsConnecting(true)
+    setConnectionStatus("connecting")
+    setErrorMessage("")
 
-  const getDeviceIcon = (type: "tv" | "mobile" | "tablet" | "desktop") => {
-    switch (type) {
-      case "tv":
-        return Tv
-      case "mobile":
-        return Smartphone
-      case "tablet":
-        return Tablet
-      case "desktop":
-        return Monitor
-      default:
-        return Monitor
+    try {
+      const result = await jellyfinAPI.linkQuickConnectPin(pin.trim())
+
+      if (result.success && result.device) {
+        setConnectedDevice(result.device)
+        setConnectionStatus("success")
+        setPin("")
+      } else {
+        throw new Error("Connection failed")
+      }
+    } catch (error: any) {
+      setConnectionStatus("error")
+      setErrorMessage(error.message || "Failed to connect device")
+    } finally {
+      setIsConnecting(false)
     }
   }
 
-  const formatTime = (isoString: string) => {
-    return new Date(isoString).toLocaleString()
+  const handleDisconnect = () => {
+    setConnectedDevice(null)
+    setConnectionStatus("idle")
+    setPin("")
+  }
+
+  const getDeviceIcon = (deviceType: string) => {
+    const type = deviceType.toLowerCase()
+    if (type.includes("tv") || type.includes("android tv")) return Tv
+    if (type.includes("phone") || type.includes("iphone")) return Smartphone
+    if (type.includes("tablet") || type.includes("ipad")) return Tablet
+    if (type.includes("xbox") || type.includes("playstation") || type.includes("gaming")) return Gamepad2
+    return Monitor
+  }
+
+  const copyTestPin = async () => {
+    try {
+      await navigator.clipboard.writeText(testPin)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (error) {
+      // Fallback for browsers that don't support clipboard API
+      setPin(testPin)
+    }
+  }
+
+  const useTestPin = () => {
+    setPin(testPin)
   }
 
   return (
     <div className="space-y-6">
-      {/* Server Status Card */}
-      <Card className="relative overflow-hidden border-0 shadow-xl">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-600 via-violet-600 to-indigo-700"></div>
-        <div className="absolute inset-0 bg-black/20"></div>
-        <div className="absolute inset-0">
-          <div className="absolute top-0 left-0 w-full h-full opacity-30">
-            <div className="absolute top-4 left-4 w-32 h-32 bg-white/10 rounded-full blur-xl animate-pulse"></div>
-            <div className="absolute bottom-4 right-4 w-24 h-24 bg-white/10 rounded-full blur-lg animate-pulse delay-1000"></div>
-            <div className="absolute top-1/2 left-1/2 w-16 h-16 bg-white/10 rounded-full blur-md animate-pulse delay-500"></div>
+      {/* Header */}
+      <div className="text-center space-y-2">
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+            <Link className="h-6 w-6 text-white" />
           </div>
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
+            Jellyfin Quick Connect
+          </h2>
         </div>
-        <CardHeader className="relative z-10">
+        <p className="text-muted-foreground max-w-2xl mx-auto">
+          Connect your devices to Jellyfin by entering the PIN code displayed on your device
+        </p>
+      </div>
+
+      {/* Server Status */}
+      <Card className="border-0 bg-gradient-to-br from-slate-50 to-gray-100 dark:from-slate-900 dark:to-gray-900 shadow-xl">
+        <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                <Shield className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <CardTitle className="text-white text-xl">OG JELLYFIN Server</CardTitle>
-                <CardDescription className="text-purple-100">https://xqi1eda.freshticks.xyz</CardDescription>
-              </div>
+              <div
+                className={`w-3 h-3 rounded-full ${
+                  serverStatus === "online"
+                    ? "bg-green-500 animate-pulse"
+                    : serverStatus === "offline"
+                      ? "bg-red-500"
+                      : "bg-yellow-500 animate-pulse"
+                }`}
+              />
+              <span className="font-medium">
+                Jellyfin Server:{" "}
+                {serverStatus === "online" ? "Connected" : serverStatus === "offline" ? "Offline" : "Checking..."}
+              </span>
             </div>
-            <div className="flex items-center gap-2">
-              {serverStatus === "checking" ? (
-                <Badge className="bg-yellow-500/20 text-yellow-100 border-yellow-400/30">
-                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  Checking
-                </Badge>
-              ) : serverStatus === "online" ? (
-                <Badge className="bg-green-500/20 text-green-100 border-green-400/30">
-                  <Wifi className="h-3 w-3 mr-1" />
-                  Online
-                </Badge>
-              ) : (
-                <Badge className="bg-red-500/20 text-red-100 border-red-400/30">
-                  <WifiOff className="h-3 w-3 mr-1" />
-                  Offline
-                </Badge>
-              )}
-              <Button onClick={checkServerStatus} variant="ghost" size="sm" className="text-white hover:bg-white/10">
-                <RefreshCw className="h-4 w-4" />
-              </Button>
-            </div>
+            <Button
+              onClick={checkServerStatus}
+              variant="outline"
+              size="sm"
+              disabled={serverStatus === "checking"}
+              className="gap-2 bg-transparent"
+            >
+              <RefreshCw className={`h-4 w-4 ${serverStatus === "checking" ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
           </div>
-        </CardHeader>
+          <div className="mt-2 text-sm text-muted-foreground">Server: xqi1eda.freshticks.xyz</div>
+        </CardContent>
       </Card>
 
-      {/* Connected Device Card */}
+      {/* Connected Device Display */}
       {connectedDevice && (
-        <Card className="border-0 shadow-xl bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center">
-                  {(() => {
-                    const DeviceIcon = getDeviceIcon(connectedDevice.deviceType)
-                    return <DeviceIcon className="h-6 w-6 text-white" />
-                  })()}
-                </div>
-                <div>
-                  <CardTitle className="text-green-800 flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5" />
-                    Pinned Device Connected
-                  </CardTitle>
-                  <CardDescription className="text-green-600">
-                    Your device is successfully linked to the server
-                  </CardDescription>
-                </div>
-              </div>
-              <Button
-                onClick={handleDisconnect}
-                variant="outline"
-                size="sm"
-                className="border-red-200 text-red-600 hover:bg-red-50 bg-transparent"
-              >
-                <Unlink className="h-4 w-4 mr-2" />
-                Disconnect
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-green-800">Device Name</label>
-                <div className="p-3 bg-white/60 rounded-lg border border-green-200">
-                  <p className="text-green-700 font-medium">{connectedDevice.name}</p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-green-800">App</label>
-                <div className="p-3 bg-white/60 rounded-lg border border-green-200">
-                  <p className="text-green-700">{connectedDevice.appName}</p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-green-800">Connected At</label>
-                <div className="p-3 bg-white/60 rounded-lg border border-green-200">
-                  <p className="text-green-700 text-sm">{formatTime(connectedDevice.connectedAt)}</p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-green-800">Status</label>
-                <div className="p-3 bg-white/60 rounded-lg border border-green-200">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-green-700 text-sm font-medium">Active</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Quick Connect Card */}
-      {!connectedDevice && (
-        <Card className="border-0 shadow-xl relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-violet-700"></div>
-          <div className="absolute inset-0 bg-black/10"></div>
-          <div className="absolute inset-0">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-pulse"></div>
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
-          </div>
-          <CardHeader className="relative z-10">
+        <Card className="border-0 bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20 shadow-xl">
+          <CardHeader className="pb-4">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                <Link className="h-6 w-6 text-white" />
+              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                <CheckCircle className="h-5 w-5 text-white" />
               </div>
               <div>
-                <CardTitle className="text-white text-xl">Pin Your Jellyfin Client</CardTitle>
-                <CardDescription className="text-indigo-100">
-                  Enter the PIN from your Jellyfin app to connect your device
+                <CardTitle className="text-green-800 dark:text-green-200">Device Connected</CardTitle>
+                <CardDescription className="text-green-600 dark:text-green-400">
+                  Your device is now linked to Jellyfin
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
-          <CardContent className="relative z-10 space-y-6">
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-4 p-4 bg-white/50 dark:bg-black/20 rounded-xl">
+              <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center">
+                {(() => {
+                  const DeviceIcon = getDeviceIcon(connectedDevice.type)
+                  return <DeviceIcon className="h-6 w-6 text-white" />
+                })()}
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-gray-900 dark:text-gray-100">{connectedDevice.name}</h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{connectedDevice.type}</p>
+                <div className="flex items-center gap-4 mt-1 text-xs text-gray-500 dark:text-gray-500">
+                  <span>
+                    {connectedDevice.appName} {connectedDevice.appVersion}
+                  </span>
+                  <Badge
+                    variant="secondary"
+                    className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                  >
+                    Active
+                  </Badge>
+                </div>
+              </div>
+            </div>
+            <Button
+              onClick={handleDisconnect}
+              variant="outline"
+              className="w-full border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20 bg-transparent"
+            >
+              Disconnect Device
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* PIN Input Form */}
+      {!connectedDevice && (
+        <Card className="border-0 bg-gradient-to-br from-violet-50 to-purple-100 dark:from-violet-900/20 dark:to-purple-900/20 shadow-xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-violet-600" />
+              Enter Device PIN
+            </CardTitle>
+            <CardDescription>
+              Open Jellyfin on your device and go to Settings → Quick Connect to get your PIN
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
             <form onSubmit={handlePinSubmit} className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-white">Quick Connect PIN</label>
                 <div className="relative">
                   <Input
                     type={showPin ? "text" : "password"}
+                    placeholder="Enter PIN from your device"
                     value={pin}
-                    onChange={(e) => {
-                      const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "")
-                      setPin(value)
-                    }}
-                    placeholder="Enter PIN from your Jellyfin app"
-                    className="bg-white/10 border-white/20 text-white placeholder:text-white/60 pr-12"
+                    onChange={(e) => setPin(e.target.value.toUpperCase())}
+                    className="pr-12 h-12 text-lg font-mono tracking-wider bg-white/70 dark:bg-black/20 border-violet-200 dark:border-violet-800 focus:border-violet-500 dark:focus:border-violet-400"
+                    disabled={isConnecting}
                     maxLength={10}
                   />
                   <Button
                     type="button"
-                    onClick={() => setShowPin(!showPin)}
                     variant="ghost"
                     size="sm"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-white/60 hover:text-white hover:bg-white/10"
+                    onClick={() => setShowPin(!showPin)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 hover:bg-violet-100 dark:hover:bg-violet-900/20"
                   >
                     {showPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
               </div>
 
-              {error && (
-                <Alert className="bg-red-500/10 border-red-400/30 text-red-100">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
               <Button
                 type="submit"
-                disabled={isConnecting || !pin.trim() || pin.length < 4}
-                className="w-full bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-sm"
+                disabled={!pin.trim() || isConnecting || serverStatus !== "online"}
+                className="w-full h-12 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-semibold shadow-lg"
               >
                 {isConnecting ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Connecting to Server...
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    Connecting...
                   </>
                 ) : (
                   <>
-                    <Zap className="h-4 w-4 mr-2" />
+                    <Wifi className="h-5 w-5 mr-2" />
                     Connect Device
                   </>
                 )}
               </Button>
             </form>
 
-            <div className="border-t border-white/20 pt-4">
-              <h4 className="text-white font-medium mb-3 flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                How to Connect:
-              </h4>
-              <ol className="space-y-2 text-sm text-indigo-100">
-                <li className="flex items-start gap-2">
-                  <span className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 mt-0.5">
-                    1
-                  </span>
-                  Open your Jellyfin app on any device (phone, tablet, TV, etc.)
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 mt-0.5">
-                    2
-                  </span>
-                  Go to Settings → Quick Connect or look for "Connect to Server"
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 mt-0.5">
-                    3
-                  </span>
-                  Generate a PIN code in your app
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 mt-0.5">
-                    4
-                  </span>
-                  Enter that PIN code above to link your device
-                </li>
-              </ol>
-            </div>
+            {/* Error Display */}
+            {connectionStatus === "error" && (
+              <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
+                <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                <AlertDescription className="text-red-800 dark:text-red-200">{errorMessage}</AlertDescription>
+              </Alert>
+            )}
           </CardContent>
         </Card>
       )}
 
-      {/* Testing Section */}
-      <Card className="border-0 shadow-lg bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200">
+      {/* Testing Panel */}
+      <Card className="border-0 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 shadow-xl">
         <CardHeader>
-          <CardTitle className="text-amber-800 flex items-center gap-2">
-            <Zap className="h-5 w-5" />
-            Test Quick Connect
+          <CardTitle className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
+            <Shield className="h-5 w-5" />
+            Quick Connect Testing
           </CardTitle>
-          <CardDescription className="text-amber-600">
-            Generate a test PIN to simulate the connection process
+          <CardDescription className="text-blue-600 dark:text-blue-400">
+            Use these tools to test the Quick Connect functionality
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex items-center gap-3 p-4 bg-white/50 dark:bg-black/20 rounded-xl">
+            <div className="flex-1">
+              <div className="font-mono text-lg font-bold text-blue-800 dark:text-blue-200">Test PIN: {testPin}</div>
+              <div className="text-sm text-blue-600 dark:text-blue-400">Generated test PIN for development</div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={copyTestPin}
+                variant="outline"
+                size="sm"
+                className="gap-2 border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/20 bg-transparent"
+              >
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                {copied ? "Copied!" : "Copy"}
+              </Button>
+              <Button
+                onClick={useTestPin}
+                variant="outline"
+                size="sm"
+                className="gap-2 border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/20 bg-transparent"
+              >
+                Use PIN
+              </Button>
+            </div>
+          </div>
+
           <div className="flex gap-2">
             <Button
               onClick={generateTestPin}
               variant="outline"
-              className="border-amber-300 text-amber-700 hover:bg-amber-100 bg-transparent"
+              size="sm"
+              className="flex-1 border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/20 bg-transparent"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
-              Generate Test PIN
+              Generate New PIN
             </Button>
-            {testPin && (
-              <Button
-                onClick={copyTestPin}
-                variant="outline"
-                className="border-amber-300 text-amber-700 hover:bg-amber-100 bg-transparent"
-              >
-                <Copy className="h-4 w-4 mr-2" />
-                Copy PIN
-              </Button>
-            )}
           </div>
-          {testPin && (
-            <div className="p-4 bg-white/60 rounded-lg border border-amber-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-amber-800">Test PIN Generated:</p>
-                  <p className="text-2xl font-bold text-amber-900 font-mono tracking-wider">{testPin}</p>
-                </div>
-                <Badge className="bg-amber-200 text-amber-800">Test Mode</Badge>
+
+          <div className="text-xs text-blue-600 dark:text-blue-400 space-y-1">
+            <p>• Use "ERROR" as PIN to test error handling</p>
+            <p>• Use "TIMEOUT" as PIN to test timeout scenarios</p>
+            <p>• Any other 4+ character PIN will simulate successful connection</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Instructions */}
+      <Card className="border-0 bg-gradient-to-br from-gray-50 to-slate-100 dark:from-gray-900 dark:to-slate-900 shadow-xl">
+        <CardHeader>
+          <CardTitle>How to Connect Your Device</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex gap-4">
+              <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                1
               </div>
-              <p className="text-xs text-amber-600 mt-2">
-                Use this PIN in the form above to test the connection process
-              </p>
+              <div>
+                <h4 className="font-semibold">Open Jellyfin App</h4>
+                <p className="text-sm text-muted-foreground">
+                  Launch the Jellyfin app on your device (TV, phone, tablet, etc.)
+                </p>
+              </div>
             </div>
-          )}
+            <div className="flex gap-4">
+              <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                2
+              </div>
+              <div>
+                <h4 className="font-semibold">Navigate to Quick Connect</h4>
+                <p className="text-sm text-muted-foreground">
+                  Go to Settings → Quick Connect or look for the "Quick Connect" option
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                3
+              </div>
+              <div>
+                <h4 className="font-semibold">Enter the PIN</h4>
+                <p className="text-sm text-muted-foreground">
+                  Copy the PIN displayed on your device and enter it in the form above
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                4
+              </div>
+              <div>
+                <h4 className="font-semibold">Enjoy Streaming</h4>
+                <p className="text-sm text-muted-foreground">
+                  Your device is now connected and ready to stream content!
+                </p>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
