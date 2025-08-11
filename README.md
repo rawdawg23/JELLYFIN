@@ -1,74 +1,73 @@
-# Jellyfin Store Setup
+# Jellyfin Store Application
 
-A modern, responsive web application for Jellyfin server management and community features.
+This is a Next.js application designed to demonstrate various features for a Jellyfin-like media server store, including user authentication, server connection management (Jellyfin Quick Connect, Emby Connect), admin dashboard functionalities, forum, messaging, support ticket system, and a premium subscription section with PayPal integration. It also includes interactive 3D elements like a hero slider and a live user map.
 
 ## Features
 
-- **User Authentication**: Secure login and registration system
-- **Jellyfin Quick Connect**: Easy device connection using Quick Connect codes
-- **Emby Connect Integration**: Connect to Emby servers with credentials
-- **Community Features**: Forums, messaging, and ticket system
-- **Responsive Design**: Works seamlessly across all devices
-- **Premium UI**: iOS-inspired design with smooth animations
+-   **User Authentication**: Mock login system with username "user" and password "password".
+-   **Jellyfin Quick Connect**: Simulate checking and linking Jellyfin servers using Quick Connect codes.
+-   **Emby Connect**: Simulate connecting to Emby servers with URL and API key.
+-   **Admin Dashboard**: Mock server status monitoring, user management, and system settings.
+-   **Forum System**: Create and manage forum posts and replies.
+-   **Messaging System**: Simulate real-time chat with an AI echo.
+-   **Support Ticket System**: Create, update, and delete support tickets with priority and status.
+-   **Premium Subscription**: Mock PayPal integration for subscribing to a premium plan.
+-   **3D Hero Slider**: Interactive 3D carousel for showcasing content.
+-   **3D Live Map**: A globe displaying mock user locations with interactive markers.
+-   **Movie Carousel**: A responsive carousel for featured media collections.
+-   **UK Time Display**: A component showing the current time in the UK.
+-   **Responsive Design**: Optimized for various screen sizes using Tailwind CSS.
+-   **Shadcn/ui**: Utilizes Shadcn/ui components for a modern and accessible UI.
 
 ## Getting Started
 
-1. Install dependencies:
-\`\`\`bash
-npm install
-\`\`\`
+To run this project locally, follow these steps:
 
-2. Run the development server:
-\`\`\`bash
-npm run dev
-\`\`\`
-
-3. Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-## Admin Access
-
-- Username: `ogadmin`
-- Password: `Ebony2025`
-
-## Quick Connect Testing
-
-The application includes a comprehensive testing system for Quick Connect functionality:
-
-- Generate test codes for various device types
-- Simulate connection scenarios
-- Test network conditions and error handling
-- Validate cross-platform compatibility
-
-## Technologies Used
-
-- **Next.js 14**: React framework with App Router
-- **TypeScript**: Type-safe development
-- **Tailwind CSS**: Utility-first CSS framework
-- **shadcn/ui**: Modern UI components
-- **Lucide React**: Beautiful icons
+1.  **Clone the repository**:
+    \`\`\`bash
+    git clone [repository-url]
+    cd jellyfin-store
+    \`\`\`
+2.  **Install dependencies**:
+    \`\`\`bash
+    npm install
+    # or
+    yarn install
+    \`\`\`
+3.  **Run the development server**:
+    \`\`\`bash
+    npm run dev
+    # or
+    yarn dev
+    \`\`\`
+    Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
 
 ## Project Structure
 
-\`\`\`
-├── app/                    # Next.js app directory
-├── components/            # React components
-│   ├── ui/               # shadcn/ui components
-│   ├── profile/          # User profile components
-│   ├── auth/             # Authentication components
-│   └── ...
-├── lib/                  # Utility functions and contexts
-├── public/               # Static assets
-└── styles/               # Global styles
-\`\`\`
+-   `app/page.tsx`: Main application entry point, handling login state.
+-   `components/`: Contains all reusable React components, categorized by feature (e.g., `auth`, `profile`, `admin`, `forum`, `messaging`, `tickets`, `testing`, `ui`).
+-   `lib/`: Utility functions and Zustand stores for state management (e.g., `jellyfin-api.ts`, `emby-api.ts`, `date-utils.ts`, `forum-store.tsx`, `message-store.tsx`, `ticket-store.tsx`, `utils.ts`).
+-   `providers/`: React context providers, such as `AuthProvider`.
+-   `public/`: Static assets like images.
+-   `styles/globals.css`: Global CSS styles, including Tailwind CSS imports.
+
+## Technologies Used
+
+-   Next.js (App Router)
+-   React
+-   TypeScript
+-   Tailwind CSS
+-   Shadcn/ui
+-   Zustand (for state management)
+-   React Three Fiber / Drei (for 3D rendering)
+-   Lucide React (for icons)
+-   Date-fns (for date formatting)
+-   UUID (for unique IDs)
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+Contributions are welcome! Please feel free to submit a pull request or open an issue.
 
 ## License
 
-This project is licensed under the MIT License.
+This project is open-source and available under the [MIT License](LICENSE).

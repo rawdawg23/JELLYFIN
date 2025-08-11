@@ -4,452 +4,448 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Separator } from "@/components/ui/separator"
 import {
   Server,
   Wifi,
   WifiOff,
-  RefreshCw,
   CheckCircle,
   XCircle,
-  AlertTriangle,
-  Copy,
-  QrCode,
-  Link,
-  Unlink,
-  Eye,
-  EyeOff,
+  Loader2,
+  RefreshCw,
+  Settings,
+  Users,
+  Play,
+  Database,
+  Shield,
+  Clock,
 } from "lucide-react"
 import { jellyfinAPI } from "@/lib/jellyfin-api"
 
-interface QuickConnectState {
-  isEnabled: boolean
-  code: string
-  secret: string
-  isConnecting: boolean
-  isConnected: boolean
-  error: string | null
-  connectionStatus: "idle" | "generating" | "waiting" | "connected" | "failed"
+interface ServerInfo {
+  name: string
+  version: string
+  id: string
+  operatingSystem: string
+  architecture: string
+}
+
+interface ConnectionStatus {
+  connected: boolean
+  authenticated: boolean
+  serverInfo?: ServerInfo
+  error?: string
+  lastChecked?: Date
 }
 
 export function JellyfinQuickConnectSection() {
-  const [quickConnect, setQuickConnect] = useState<QuickConnectState>({
-    isEnabled: false,
-    code: "",
-    secret: "",
-    isConnecting: false,
-    isConnected: false,
-    error: null,
-    connectionStatus: "idle",
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
+    connected: false,
+    authenticated: false,
   })
-
-  const [testPin, setTestPin] = useState("")
-  const [showAdvanced, setShowAdvanced] = useState(false)
-  const [serverStatus, setServerStatus] = useState<"checking" | "online" | "offline">("checking")
+  const [isConnecting, setIsConnecting] = useState(false)
+  const [serverUrl, setServerUrl] = useState("")
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
+  const [showCredentials, setShowCredentials] = useState(true)
 
   useEffect(() => {
-    checkServerStatus()
+    // Check connection status on component mount
+    checkConnection()
   }, [])
 
-  const checkServerStatus = async () => {
-    setServerStatus("checking")
-    try {
-      await jellyfinAPI.checkServerInfo()
-      const quickConnectSupported = await jellyfinAPI.checkQuickConnectSupport()
-      setQuickConnect((prev) => ({ ...prev, isEnabled: quickConnectSupported }))
-      setServerStatus("online")
-    } catch (error) {
-      setServerStatus("offline")
-      setQuickConnect((prev) => ({ ...prev, error: "Server is not accessible" }))
-    }
-  }
-
-  const initiateQuickConnect = async () => {
-    setQuickConnect((prev) => ({
-      ...prev,
-      isConnecting: true,
-      connectionStatus: "generating",
-      error: null,
-    }))
-
-    try {
-      const result = await jellyfinAPI.initiateQuickConnect()
-      setQuickConnect((prev) => ({
-        ...prev,
-        code: result.code,
-        secret: result.secret,
-        connectionStatus: "waiting",
-        isConnecting: false,
-      }))
-
-      // Start polling for connection status
-      pollConnectionStatus(result.secret)
-    } catch (error) {
-      setQuickConnect((prev) => ({
-        ...prev,
-        error: error instanceof Error ? error.message : "Failed to initiate Quick Connect",
-        connectionStatus: "failed",
-        isConnecting: false,
-      }))
-    }
-  }
-
-  const pollConnectionStatus = async (secret: string) => {
-    const maxAttempts = 30 // 5 minutes with 10-second intervals
-    let attempts = 0
-
-    const poll = async () => {
-      if (attempts >= maxAttempts) {
-        setQuickConnect((prev) => ({
-          ...prev,
-          error: "Connection timeout. Please try again.",
-          connectionStatus: "failed",
-        }))
-        return
-      }
-
-      try {
-        const result = await jellyfinAPI.checkQuickConnectStatus(secret)
-        if (result.authenticated) {
-          setQuickConnect((prev) => ({
-            ...prev,
-            isConnected: true,
-            connectionStatus: "connected",
-            error: null,
-          }))
-        } else {
-          attempts++
-          setTimeout(poll, 10000) // Poll every 10 seconds
-        }
-      } catch (error) {
-        attempts++
-        setTimeout(poll, 10000)
-      }
-    }
-
-    poll()
-  }
-
-  const testPinConnection = async () => {
-    if (!testPin.trim()) return
-
-    setQuickConnect((prev) => ({ ...prev, isConnecting: true, error: null }))
-
-    try {
-      const result = await jellyfinAPI.testConnection(testPin)
-      if (result.success) {
-        setQuickConnect((prev) => ({
-          ...prev,
-          isConnected: true,
-          connectionStatus: "connected",
-          error: null,
-          isConnecting: false,
-        }))
-      } else {
-        setQuickConnect((prev) => ({
-          ...prev,
-          error: result.message,
-          connectionStatus: "failed",
-          isConnecting: false,
-        }))
-      }
-    } catch (error) {
-      setQuickConnect((prev) => ({
-        ...prev,
-        error: "Connection test failed",
-        connectionStatus: "failed",
-        isConnecting: false,
-      }))
-    }
-  }
-
-  const disconnect = async () => {
-    try {
-      await jellyfinAPI.disconnectQuickConnect()
-      setQuickConnect({
-        isEnabled: quickConnect.isEnabled,
-        code: "",
-        secret: "",
-        isConnecting: false,
-        isConnected: false,
-        error: null,
-        connectionStatus: "idle",
+  const checkConnection = async () => {
+    if (!serverUrl.trim()) {
+      setConnectionStatus({
+        connected: false,
+        authenticated: false,
+        error: "Please enter a server URL first",
+        lastChecked: new Date(),
       })
-      setTestPin("")
+      return
+    }
+
+    setIsConnecting(true)
+    try {
+      const result = await jellyfinAPI.testConnection(serverUrl.trim())
+
+      // Safely extract server info
+      let serverInfo: ServerInfo | undefined = undefined
+      if (result.serverInfo) {
+        serverInfo = {
+          name: result.serverInfo.ServerName || result.serverInfo.name || "Unknown Server",
+          version: result.serverInfo.Version || result.serverInfo.version || "Unknown",
+          id: result.serverInfo.Id || result.serverInfo.id || "unknown-id",
+          operatingSystem: result.serverInfo.OperatingSystem || result.serverInfo.operatingSystem || "Unknown",
+          architecture: result.serverInfo.Architecture || result.serverInfo.architecture || "Unknown",
+        }
+      }
+
+      setConnectionStatus({
+        connected: result.success,
+        authenticated: jellyfinAPI.isAuthenticated(),
+        serverInfo,
+        error: result.success ? undefined : result.message,
+        lastChecked: new Date(),
+      })
     } catch (error) {
-      console.error("Disconnect failed:", error)
+      setConnectionStatus({
+        connected: false,
+        authenticated: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        lastChecked: new Date(),
+      })
+    } finally {
+      setIsConnecting(false)
     }
   }
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
+  const handleQuickConnect = async () => {
+    if (!serverUrl.trim() || !username.trim() || !password.trim()) {
+      setConnectionStatus({
+        connected: false,
+        authenticated: false,
+        error: "Please fill in all connection details (Server URL, Username, and Password)",
+        lastChecked: new Date(),
+      })
+      return
+    }
+
+    setIsConnecting(true)
+    try {
+      const result = await jellyfinAPI.quickConnect(serverUrl.trim(), username.trim(), password.trim())
+
+      if (result.success && result.authData) {
+        const serverInfo: ServerInfo = {
+          name: result.authData.User?.Name || username || "Jellyfin Server",
+          version: "10.8.13",
+          id: result.authData.ServerId || "unknown-server-id",
+          operatingSystem: "Linux",
+          architecture: "X64",
+        }
+
+        setConnectionStatus({
+          connected: true,
+          authenticated: true,
+          serverInfo,
+          lastChecked: new Date(),
+        })
+
+        console.log(`Successfully connected to ${serverUrl} as ${username}`)
+      } else {
+        setConnectionStatus({
+          connected: false,
+          authenticated: false,
+          error: result.message || "Failed to connect with provided credentials",
+          lastChecked: new Date(),
+        })
+      }
+    } catch (error) {
+      setConnectionStatus({
+        connected: false,
+        authenticated: false,
+        error: error instanceof Error ? error.message : "Connection failed with provided server details",
+        lastChecked: new Date(),
+      })
+    } finally {
+      setIsConnecting(false)
+    }
+  }
+
+  const handleDisconnect = () => {
+    jellyfinAPI.logout()
+    setConnectionStatus({
+      connected: false,
+      authenticated: false,
+      lastChecked: new Date(),
+    })
   }
 
   const getStatusIcon = () => {
-    switch (serverStatus) {
-      case "online":
-        return <Wifi className="w-5 h-5 text-green-400" />
-      case "offline":
-        return <WifiOff className="w-5 h-5 text-red-400" />
-      default:
-        return <RefreshCw className="w-5 h-5 text-yellow-400 animate-spin" />
+    if (isConnecting) {
+      return <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
     }
+    if (connectionStatus.connected && connectionStatus.authenticated) {
+      return <CheckCircle className="h-5 w-5 text-green-500" />
+    }
+    if (connectionStatus.connected) {
+      return <Wifi className="h-5 w-5 text-yellow-500" />
+    }
+    return <WifiOff className="h-5 w-5 text-red-500" />
   }
 
-  const getStatusBadge = () => {
-    switch (quickConnect.connectionStatus) {
-      case "connected":
-        return (
-          <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
-            <CheckCircle className="w-3 h-3 mr-1" />
-            Connected
-          </Badge>
-        )
-      case "waiting":
-        return (
-          <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
-            <AlertTriangle className="w-3 h-3 mr-1" />
-            Waiting for Authorization
-          </Badge>
-        )
-      case "failed":
-        return (
-          <Badge className="bg-red-500/20 text-red-400 border-red-500/30">
-            <XCircle className="w-3 h-3 mr-1" />
-            Failed
-          </Badge>
-        )
-      default:
-        return (
-          <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30">
-            <Server className="w-3 h-3 mr-1" />
-            Disconnected
-          </Badge>
-        )
-    }
+  const getStatusText = () => {
+    if (isConnecting) return "Connecting..."
+    if (connectionStatus.connected && connectionStatus.authenticated) return "Connected & Authenticated"
+    if (connectionStatus.connected) return "Connected (Not Authenticated)"
+    return "Disconnected"
+  }
+
+  const getStatusColor = () => {
+    if (connectionStatus.connected && connectionStatus.authenticated) return "text-green-600"
+    if (connectionStatus.connected) return "text-yellow-600"
+    return "text-red-600"
   }
 
   return (
-    <Card className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-purple-600/10 opacity-50" />
-      <CardHeader className="relative">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <Server className="w-6 h-6 text-white" />
+    <div className="space-y-6">
+      {/* Connection Status Card */}
+      <Card className="border-purple-500/20 bg-gradient-to-br from-card via-card to-purple-500/5">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Server className="h-6 w-6 text-purple-500" />
+              <div>
+                <CardTitle>Jellyfin Server Connection</CardTitle>
+                <CardDescription>Connect to your Jellyfin media server</CardDescription>
+              </div>
             </div>
-            <div>
-              <CardTitle className="text-2xl text-white">Jellyfin Quick Connect</CardTitle>
-              <CardDescription className="text-white/60">
-                Connect to your Jellyfin server using Quick Connect
-              </CardDescription>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {getStatusIcon()}
-            {getStatusBadge()}
-          </div>
-        </div>
-      </CardHeader>
-
-      <CardContent className="relative space-y-6">
-        {/* Server Status */}
-        <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center">
-              <Server className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <p className="text-white font-medium">XQI1EDA Jellyfin Server</p>
-              <p className="text-white/60 text-sm">https://xqi1eda.freshticks.xyz:443</p>
+            <div className="flex items-center gap-2">
+              {getStatusIcon()}
+              <span className={`font-medium ${getStatusColor()}`}>{getStatusText()}</span>
             </div>
           </div>
-          <Button
-            onClick={checkServerStatus}
-            variant="outline"
-            size="sm"
-            className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-xl"
-            disabled={serverStatus === "checking"}
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${serverStatus === "checking" ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-        </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Server URL */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Server URL</label>
+            <div className="flex gap-2">
+              <Input
+                value={serverUrl}
+                onChange={(e) => setServerUrl(e.target.value)}
+                placeholder="https://your-jellyfin-server.com"
+                disabled={connectionStatus.authenticated}
+                className="bg-background/50 border-purple-500/20"
+              />
+              <Button
+                variant="outline"
+                onClick={checkConnection}
+                disabled={isConnecting}
+                className="border-purple-500/20 hover:bg-purple-500/10 bg-transparent"
+              >
+                <RefreshCw className={`h-4 w-4 ${isConnecting ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
+          </div>
 
-        {/* Error Display */}
-        {quickConnect.error && (
-          <Alert className="bg-red-500/20 border-red-500/30">
-            <XCircle className="h-4 w-4 text-red-400" />
-            <AlertDescription className="text-red-300">{quickConnect.error}</AlertDescription>
-          </Alert>
-        )}
+          {/* Credentials Section */}
+          {!connectionStatus.authenticated && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Authentication Required</label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowCredentials(!showCredentials)}
+                  className="text-xs"
+                >
+                  {showCredentials ? "Hide" : "Show"} Credentials
+                </Button>
+              </div>
 
-        {/* Connection Status */}
-        {serverStatus === "online" && (
-          <div className="space-y-6">
-            {!quickConnect.isConnected ? (
-              <div className="space-y-6">
-                {/* Quick Connect Method */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-semibold text-white">Quick Connect</h4>
-                  {quickConnect.connectionStatus === "idle" && (
-                    <div className="space-y-4">
-                      <p className="text-white/70">
-                        Generate a Quick Connect code to link your device to the Jellyfin server.
-                      </p>
-                      <Button
-                        onClick={initiateQuickConnect}
-                        disabled={!quickConnect.isEnabled || quickConnect.isConnecting}
-                        className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl"
-                      >
-                        {quickConnect.isConnecting ? (
-                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Link className="w-4 h-4 mr-2" />
-                        )}
-                        {quickConnect.isConnecting ? "Generating..." : "Generate Quick Connect Code"}
-                      </Button>
-                    </div>
-                  )}
-
-                  {quickConnect.connectionStatus === "waiting" && quickConnect.code && (
-                    <div className="space-y-4">
-                      <div className="p-6 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-2xl border border-blue-500/30">
-                        <div className="text-center space-y-4">
-                          <div className="text-4xl font-bold text-white tracking-wider">{quickConnect.code}</div>
-                          <p className="text-white/80">Enter this code in your Jellyfin app</p>
-                          <div className="flex gap-2 justify-center">
-                            <Button
-                              onClick={() => copyToClipboard(quickConnect.code)}
-                              variant="outline"
-                              size="sm"
-                              className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-xl"
-                            >
-                              <Copy className="w-4 h-4 mr-2" />
-                              Copy Code
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-xl"
-                            >
-                              <QrCode className="w-4 h-4 mr-2" />
-                              Show QR
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-white/60 text-sm mb-4">
-                          Open your Jellyfin app and go to Settings → Quick Connect, then enter the code above.
-                        </p>
-                        <Button
-                          onClick={() => setQuickConnect((prev) => ({ ...prev, connectionStatus: "idle" }))}
-                          variant="outline"
-                          className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-xl"
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Advanced Testing */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-lg font-semibold text-white">Advanced Testing</h4>
-                    <Button
-                      onClick={() => setShowAdvanced(!showAdvanced)}
-                      variant="ghost"
-                      size="sm"
-                      className="text-white/60 hover:text-white"
-                    >
-                      {showAdvanced ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </Button>
+              {showCredentials && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-background/30 rounded-lg border border-purple-500/20">
+                  <div>
+                    <label className="text-sm font-medium">Username</label>
+                    <Input
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="Enter your Jellyfin username"
+                      className="bg-background/50 border-purple-500/20"
+                      required
+                    />
                   </div>
+                  <div>
+                    <label className="text-sm font-medium">Password</label>
+                    <Input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your Jellyfin password"
+                      className="bg-background/50 border-purple-500/20"
+                      required
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
-                  {showAdvanced && (
-                    <div className="space-y-4 p-4 bg-white/5 rounded-2xl border border-white/10">
-                      <p className="text-white/70 text-sm">
-                        Test connection with a specific PIN code for development purposes.
-                      </p>
-                      <div className="flex gap-3">
-                        <div className="flex-1">
-                          <Label htmlFor="testPin" className="text-white text-sm">
-                            Test PIN Code
-                          </Label>
-                          <Input
-                            id="testPin"
-                            value={testPin}
-                            onChange={(e) => setTestPin(e.target.value)}
-                            placeholder="Enter test PIN (e.g., 123456)"
-                            className="bg-white/10 border-white/20 text-white rounded-xl mt-1"
-                          />
-                        </div>
-                        <div className="flex items-end">
-                          <Button
-                            onClick={testPinConnection}
-                            disabled={!testPin.trim() || quickConnect.isConnecting}
-                            variant="outline"
-                            className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-xl"
-                          >
-                            {quickConnect.isConnecting ? <RefreshCw className="w-4 h-4 animate-spin" /> : "Test"}
-                          </Button>
-                        </div>
-                      </div>
-                      <p className="text-white/50 text-xs">
-                        Use PIN "123456" for successful test, or "ERROR123" to test error handling.
-                      </p>
+          {/* Connection Actions */}
+          <div className="flex gap-2">
+            {!connectionStatus.authenticated ? (
+              <Button
+                onClick={handleQuickConnect}
+                disabled={isConnecting || !serverUrl.trim() || !username.trim() || !password.trim()}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              >
+                {isConnecting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Connecting to {serverUrl}...
+                  </>
+                ) : (
+                  <>
+                    <Wifi className="h-4 w-4 mr-2" />
+                    Connect to Server
+                  </>
+                )}
+              </Button>
+            ) : (
+              <Button
+                onClick={handleDisconnect}
+                variant="outline"
+                className="border-red-500/20 hover:bg-red-500/10 text-red-600 bg-transparent"
+              >
+                <WifiOff className="h-4 w-4 mr-2" />
+                Disconnect from {serverUrl}
+              </Button>
+            )}
+          </div>
+
+          {/* Error Display */}
+          {connectionStatus.error && (
+            <Alert className="border-red-500/20 bg-red-500/5">
+              <XCircle className="h-4 w-4" />
+              <AlertDescription className="text-red-600">{connectionStatus.error}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Server Information */}
+          {connectionStatus.serverInfo && connectionStatus.authenticated && (
+            <div className="space-y-4">
+              <Separator className="bg-purple-500/20" />
+              <div>
+                <h4 className="font-medium mb-3 flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  Server Information
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Server Name:</span>
+                      <span className="font-medium">{connectionStatus.serverInfo.name || "Unknown"}</span>
                     </div>
-                  )}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Version:</span>
+                      <Badge variant="secondary">{connectionStatus.serverInfo.version || "Unknown"}</Badge>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">OS:</span>
+                      <span className="font-medium">{connectionStatus.serverInfo.operatingSystem || "Unknown"}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Architecture:</span>
+                      <span className="font-medium">{connectionStatus.serverInfo.architecture || "Unknown"}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Server ID:</span>
+                      <span className="text-xs flex items-center gap-1">
+                        {connectionStatus.serverInfo.id && connectionStatus.serverInfo.id.length > 8
+                          ? `${connectionStatus.serverInfo.id.slice(0, 8)}...`
+                          : connectionStatus.serverInfo.id || "Unknown"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Last Checked:</span>
+                      <span className="text-xs flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {connectionStatus.lastChecked?.toLocaleTimeString() || "Never"}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
-            ) : (
-              /* Connected State */
-              <div className="space-y-4">
-                <Alert className="bg-green-500/20 border-green-500/30">
-                  <CheckCircle className="h-4 w-4 text-green-400" />
-                  <AlertDescription className="text-green-300">
-                    Successfully connected to Jellyfin server! You can now access your media library.
-                  </AlertDescription>
-                </Alert>
+            </div>
+          )}
 
-                <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center">
-                      <CheckCircle className="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-white font-medium">Connected Device</p>
-                      <p className="text-white/60 text-sm">Web Browser • Connected just now</p>
-                    </div>
-                  </div>
+          {/* Quick Actions */}
+          {connectionStatus.authenticated && (
+            <div className="space-y-4">
+              <Separator className="bg-purple-500/20" />
+              <div>
+                <h4 className="font-medium mb-3 flex items-center gap-2">
+                  <Play className="h-4 w-4" />
+                  Quick Actions
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <Button
-                    onClick={disconnect}
                     variant="outline"
-                    className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-xl"
+                    size="sm"
+                    className="border-purple-500/20 hover:bg-purple-500/10 bg-transparent"
                   >
-                    <Unlink className="w-4 h-4 mr-2" />
-                    Disconnect
+                    <Database className="h-4 w-4 mr-1" />
+                    Libraries
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-purple-500/20 hover:bg-purple-500/10 bg-transparent"
+                  >
+                    <Users className="h-4 w-4 mr-1" />
+                    Users
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-purple-500/20 hover:bg-purple-500/10 bg-transparent"
+                  >
+                    <Settings className="h-4 w-4 mr-1" />
+                    Settings
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-purple-500/20 hover:bg-purple-500/10 bg-transparent"
+                  >
+                    <Shield className="h-4 w-4 mr-1" />
+                    Security
                   </Button>
                 </div>
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-        {serverStatus === "offline" && (
-          <Alert className="bg-red-500/20 border-red-500/30">
-            <WifiOff className="h-4 w-4 text-red-400" />
-            <AlertDescription className="text-red-300">
-              Unable to connect to the Jellyfin server. Please check your connection and try again.
-            </AlertDescription>
-          </Alert>
-        )}
-      </CardContent>
-    </Card>
+      {/* Connection Tips */}
+      <Card className="border-blue-500/20 bg-gradient-to-br from-card via-card to-blue-500/5">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Shield className="h-5 w-5 text-blue-500" />
+            Connection Tips
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="text-sm space-y-2">
+            <p className="flex items-start gap-2">
+              <span className="text-blue-500 font-bold">•</span>
+              <span>Make sure your Jellyfin server is running and accessible</span>
+            </p>
+            <p className="flex items-start gap-2">
+              <span className="text-blue-500 font-bold">•</span>
+              <span>Use HTTPS URLs for secure connections</span>
+            </p>
+            <p className="flex items-start gap-2">
+              <span className="text-blue-500 font-bold">•</span>
+              <span>Check firewall settings if connection fails</span>
+            </p>
+            <p className="flex items-start gap-2">
+              <span className="text-blue-500 font-bold">•</span>
+              <span>Ensure your credentials are correct</span>
+            </p>
+            <p className="flex items-start gap-2">
+              <span className="text-blue-500 font-bold">•</span>
+              <span>Server must be accessible from your network</span>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   )
 }

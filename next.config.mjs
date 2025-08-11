@@ -7,26 +7,14 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    domains: ['api.dicebear.com', 'images.unsplash.com'],
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'api.dicebear.com',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'images.unsplash.com',
-        port: '',
-        pathname: '/**',
+        hostname: 'blob.v0.dev',
       },
     ],
     unoptimized: true,
   },
-  experimental: {
-    optimizePackageImports: ['lucide-react'],
-  },
-}
+};
 
-export default nextConfig
+export default nextConfig;

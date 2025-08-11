@@ -9,15 +9,16 @@ export function UKTimeDisplay() {
   useEffect(() => {
     const updateTime = () => {
       const now = new Date()
-      const ukTime = new Intl.DateTimeFormat("en-GB", {
+      const ukTime = now.toLocaleString("en-GB", {
         timeZone: "Europe/London",
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }).format(now)
+      })
       setCurrentTime(ukTime)
     }
 
@@ -28,9 +29,9 @@ export function UKTimeDisplay() {
   }, [])
 
   return (
-    <div className="flex items-center gap-2 text-sm text-white/70">
-      <Clock className="w-4 h-4" />
-      <span>{currentTime} GMT</span>
+    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <Clock className="h-4 w-4" />
+      <span>{currentTime}</span>
     </div>
   )
 }

@@ -1,36 +1,66 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Next.js
+.next/
+out/
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
-.yarn/install-state.gz
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
+# Node.js
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# local env files
+# Environment variables
+.env
 .env*.local
 
-# vercel
-.vercel
-
-# typescript
+# TypeScript
 *.tsbuildinfo
-next-env.d.ts
+
+# VS Code
+.vscode/
+
+# npm package manager
+package-lock.json
+
+# yarn package manager
+yarn.lock
+
+# vercel
+.vercel/
+
+# Logs
+logs/
+*.log
+
+# Thumbnails
+.DS_Store
+Thumbs.db
+
+# IDEs and editors
+.idea/
+.project/
+.classpath
+*.sublime-project
+*.sublime-workspace
+
+# Build artifacts
+build/
+dist/
+
+# Dependency directories
+jspm_packages/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+.directory
+
+# Other
+*.swp
+*.bak
+*.swo

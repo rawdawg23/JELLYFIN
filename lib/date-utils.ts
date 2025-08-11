@@ -1,22 +1,9 @@
-export function formatUKDateTime(dateString: string): string {
-  const date = new Date(dateString)
-  return new Intl.DateTimeFormat("en-GB", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Europe/London",
-  }).format(date)
-}
-
-export function getRelativeTime(dateString: string): string {
-  const date = new Date(dateString)
+export function getRelativeTime(date: Date): string {
   const now = new Date()
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
 
   if (diffInSeconds < 60) {
-    return "Just now"
+    return "just now"
   }
 
   const diffInMinutes = Math.floor(diffInSeconds / 60)
@@ -48,46 +35,25 @@ export function getRelativeTime(dateString: string): string {
   return `${diffInYears} year${diffInYears === 1 ? "" : "s"} ago`
 }
 
-export function formatDate(dateString: string): string {
-  const date = new Date(dateString)
-  return new Intl.DateTimeFormat("en-GB", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    timeZone: "Europe/London",
-  }).format(date)
+export function formatRelativeTime(timestamp: number): string {
+  return getRelativeTime(new Date(timestamp))
 }
 
-export function formatTime(dateString: string): string {
-  const date = new Date(dateString)
-  return new Intl.DateTimeFormat("en-GB", {
+export function formatDate(date: Date): string {
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  })
+}
+
+export function formatTime(date: Date): string {
+  return date.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
-    timeZone: "Europe/London",
-  }).format(date)
+  })
 }
 
-export function isToday(dateString: string): boolean {
-  const date = new Date(dateString)
-  const today = new Date()
-  return date.toDateString() === today.toDateString()
-}
-
-export function isYesterday(dateString: string): boolean {
-  const date = new Date(dateString)
-  const yesterday = new Date()
-  yesterday.setDate(yesterday.getDate() - 1)
-  return date.toDateString() === yesterday.toDateString()
-}
-
-export function formatRelativeDate(dateString: string): string {
-  if (isToday(dateString)) {
-    return `Today at ${formatTime(dateString)}`
-  }
-
-  if (isYesterday(dateString)) {
-    return `Yesterday at ${formatTime(dateString)}`
-  }
-
-  return formatDate(dateString)
+export function formatDateTime(date: Date): string {
+  return `${formatDate(date)} at ${formatTime(date)}`
 }

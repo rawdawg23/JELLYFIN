@@ -1,75 +1,79 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { CheckCircle, Copy, User, Key, Mail, Download, ExternalLink } from "lucide-react"
+import { CheckCircle, Download, Mail, Server, Copy } from "lucide-react"
 
-interface PurchaseData {
-  planType: string
-  price: number
-  credentials: {
+interface SubscriptionDetails {
+  plan: string
+  price: string
+  duration: string
+  features: string[]
+  serverCredentials?: {
+    serverUrl: string
     username: string
     password: string
-    email?: string
   }
-  userId: string
 }
 
 interface SubscriptionSuccessModalProps {
   isOpen: boolean
   onClose: () => void
-  purchaseData: PurchaseData | null
+  subscriptionDetails?: SubscriptionDetails | null
 }
 
-export function SubscriptionSuccessModal({ isOpen, onClose, purchaseData }: SubscriptionSuccessModalProps) {
+export function SubscriptionSuccessModal({ isOpen, onClose, subscriptionDetails }: SubscriptionSuccessModalProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null)
 
-  // Return early if no purchase data
-  if (!purchaseData || !purchaseData.credentials) {
-    return null
+  const defaultDetails: SubscriptionDetails = {
+    plan: "Premium Plan",
+    price: "$9.99",
+    duration: "monthly",
+    features: ["4K Streaming", "Unlimited Downloads", "Premium Support", "Multiple Devices"],
+    serverCredentials: {
+      serverUrl: "https://demo.jellyfin.store",
+      username: "premium_user",
+      password: "temp_password_123",
+    },
   }
 
-  const { credentials, planType } = purchaseData
-  const serverUrl = "https://xqi1eda.freshticks.xyz"
+  const details = subscriptionDetails || defaultDetails
+  const safeFeatures = Array.isArray(details.features) ? details.features : []
 
   const copyToClipboard = async (text: string, field: string) => {
     try {
       await navigator.clipboard.writeText(text)
       setCopiedField(field)
       setTimeout(() => setCopiedField(null), 2000)
-    } catch (error) {
-      console.error("Failed to copy:", error)
+    } catch (err) {
+      console.error("Failed to copy text: ", err)
     }
   }
 
-  const downloadCredentials = () => {
+  const handleDownloadCredentials = () => {
     const credentialsText = `
-OG JELLYFIN - Account Details
-=============================
+Jellyfin Server Credentials
+==========================
+Plan: ${details.plan}
+Price: ${details.price}/${details.duration}
+Server URL: ${details.serverCredentials?.serverUrl || "N/A"}
+Username: ${details.serverCredentials?.username || "N/A"}
+Password: ${details.serverCredentials?.password || "N/A"}
 
-Plan: ${planType}
-Server: ${serverUrl}
+Features Included:
+${safeFeatures.map((feature) => `- ${feature}`).join("\n")}
 
-Username: ${credentials.username}
-Password: ${credentials.password}
-Email: ${credentials.email || "Not provided"}
-
-Login URL: ${serverUrl}
-
-Important: Please save these credentials securely. You will need them to access your account.
-
-Welcome to OG JELLYFIN!
-    `.trim()
+Thank you for your subscription!
+    `
 
     const blob = new Blob([credentialsText], { type: "text/plain" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `OG-JELLYFIN-${credentials.username}-credentials.txt`
+    a.download = "jellyfin-credentials.txt"
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -80,102 +84,108 @@ Welcome to OG JELLYFIN!
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-500" />
-            Welcome to OG JELLYFIN!
+          <DialogTitle className="flex items-center gap-2 text-green-600">
+            <CheckCircle className="h-6 w-6" />
+            Subscription Successful!
           </DialogTitle>
-          <DialogDescription>
-            Your {planType} subscription is now active. Here are your login credentials:
-          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          <Alert>
-            <CheckCircle className="h-4 w-4" />
-            <AlertDescription>
-              Your account has been created successfully! Please save these credentials securely.
-            </AlertDescription>
-          </Alert>
-
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Account Details</CardTitle>
-              <CardDescription>Use these credentials to log into your account</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Username</p>
-                    <p className="text-sm text-muted-foreground">{credentials.username}</p>
-                  </div>
-                </div>
-                <Button size="sm" variant="ghost" onClick={() => copyToClipboard(credentials.username, "username")}>
-                  {copiedField === "username" ? (
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </Button>
+            <CardContent className="pt-4">
+              <div className="text-center space-y-2">
+                <Badge variant="secondary" className="text-lg px-3 py-1">
+                  {details.plan}
+                </Badge>
+                <p className="text-2xl font-bold">
+                  {details.price}/{details.duration}
+                </p>
               </div>
+            </CardContent>
+          </Card>
 
-              <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                <div className="flex items-center gap-2">
-                  <Key className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Password</p>
-                    <p className="text-sm text-muted-foreground font-mono">{credentials.password}</p>
+          {details.serverCredentials && (
+            <Card>
+              <CardContent className="pt-4">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <Server className="h-4 w-4" />
+                    Server Access Details
                   </div>
-                </div>
-                <Button size="sm" variant="ghost" onClick={() => copyToClipboard(credentials.password, "password")}>
-                  {copiedField === "password" ? (
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-
-              {credentials.email && (
-                <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
+                  <div className="space-y-2 text-sm">
                     <div>
-                      <p className="text-sm font-medium">Email</p>
-                      <p className="text-sm text-muted-foreground">{credentials.email}</p>
+                      <span className="font-medium">Server URL:</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-blue-600 break-all flex-1">{details.serverCredentials.serverUrl}</p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => copyToClipboard(details.serverCredentials?.serverUrl || "", "url")}
+                        >
+                          {copiedField === "url" ? "Copied!" : <Copy className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="font-medium">Username:</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="font-mono flex-1">{details.serverCredentials.username}</p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => copyToClipboard(details.serverCredentials?.username || "", "username")}
+                        >
+                          {copiedField === "username" ? "Copied!" : <Copy className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="font-medium">Password:</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="font-mono flex-1">{details.serverCredentials.password}</p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => copyToClipboard(details.serverCredentials?.password || "", "password")}
+                        >
+                          {copiedField === "password" ? "Copied!" : <Copy className="h-3 w-3" />}
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                  <Button size="sm" variant="ghost" onClick={() => copyToClipboard(credentials.email!, "email")}>
-                    {copiedField === "email" ? (
-                      <CheckCircle className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
                 </div>
-              )}
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardContent className="pt-4">
+              <div className="space-y-2">
+                <p className="font-medium text-sm">Features Included:</p>
+                <ul className="text-sm space-y-1">
+                  {safeFeatures.map((feature, index) => (
+                    <li key={index} className="flex items-center gap-2">
+                      <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </CardContent>
           </Card>
 
           <div className="flex gap-2">
-            <Button onClick={downloadCredentials} variant="outline" className="flex-1 bg-transparent">
+            <Button onClick={handleDownloadCredentials} variant="outline" className="flex-1 bg-transparent">
               <Download className="h-4 w-4 mr-2" />
               Download
             </Button>
-            <Button asChild className="flex-1">
-              <a href={serverUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Login Now
-              </a>
+            <Button onClick={onClose} className="flex-1">
+              <Mail className="h-4 w-4 mr-2" />
+              Continue
             </Button>
           </div>
 
-          <div className="text-center">
-            <Badge variant="outline" className="text-xs">
-              Plan: {planType}
-            </Badge>
-          </div>
+          <p className="text-xs text-gray-500 text-center">Credentials have been sent to your email address</p>
         </div>
       </DialogContent>
     </Dialog>

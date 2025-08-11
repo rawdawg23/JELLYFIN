@@ -4,266 +4,289 @@ import type React from "react"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { LogIn, UserPlus, AlertCircle, CheckCircle } from "lucide-react"
+import { Loader2, Eye, EyeOff, Sparkles } from "lucide-react"
 import { useAuth } from "@/providers/auth-provider"
 
 interface LoginModalProps {
   isOpen: boolean
   onClose: () => void
+  onLogin: () => void
 }
 
-export function LoginModal({ isOpen, onClose }: LoginModalProps) {
-  const { login, register } = useAuth()
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
-  const [loginForm, setLoginForm] = useState({
-    username: "",
-    password: "",
-  })
-  const [registerForm, setRegisterForm] = useState({
+export function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
+  const { login, isLoading } = useAuth()
+  const [loginData, setLoginData] = useState({ username: "", password: "" })
+  const [registerData, setRegisterData] = useState({
     username: "",
     email: "",
     password: "",
     confirmPassword: "",
   })
+  const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState("")
+  const [activeTab, setActiveTab] = useState("login")
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
     setError("")
-    setSuccess("")
 
-    try {
-      const success = await login(loginForm.username, loginForm.password)
-      if (success) {
-        setSuccess("Successfully signed in!")
-        setTimeout(() => {
-          onClose()
-          setLoginForm({ username: "", password: "" })
-          setSuccess("")
-        }, 1000)
-      } else {
-        setError("Invalid username or password")
-      }
-    } catch (err) {
-      setError("An error occurred during sign in")
-    } finally {
-      setIsLoading(false)
+    if (!loginData.username || !loginData.password) {
+      setError("Please fill in all fields")
+      return
+    }
+
+    const success = await login(loginData.username, loginData.password)
+    if (success) {
+      onLogin()
+    } else {
+      setError("Invalid username or password")
     }
   }
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
     setError("")
-    setSuccess("")
 
-    if (registerForm.password !== registerForm.confirmPassword) {
+    if (!registerData.username || !registerData.email || !registerData.password || !registerData.confirmPassword) {
+      setError("Please fill in all fields")
+      return
+    }
+
+    if (registerData.password !== registerData.confirmPassword) {
       setError("Passwords do not match")
-      setIsLoading(false)
       return
     }
 
-    if (registerForm.password.length < 6) {
+    if (registerData.password.length < 6) {
       setError("Password must be at least 6 characters long")
-      setIsLoading(false)
       return
     }
 
-    try {
-      const success = await register(registerForm.username, registerForm.email, registerForm.password)
-      if (success) {
-        setSuccess("Account created successfully!")
-        setTimeout(() => {
-          onClose()
-          setRegisterForm({ username: "", email: "", password: "", confirmPassword: "" })
-          setSuccess("")
-        }, 1000)
-      } else {
-        setError("Failed to create account")
-      }
-    } catch (err) {
-      setError("An error occurred during registration")
-    } finally {
-      setIsLoading(false)
+    // Simulate registration
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+
+    // Auto-login after registration
+    const success = await login(registerData.username, registerData.password)
+    if (success) {
+      onLogin()
     }
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md mx-4 bg-white/95 backdrop-blur-xl border border-white/20 shadow-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-center text-2xl font-bold bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 bg-clip-text text-transparent">
-            Welcome to OG Jellyfin
-          </DialogTitle>
-          <DialogDescription className="text-center text-gray-600">
-            Sign in to your account or create a new one to get started
-          </DialogDescription>
-        </DialogHeader>
-
-        {error && (
-          <Alert className="border-red-200 bg-red-50/80 backdrop-blur-sm">
-            <AlertCircle className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-red-700">{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {success && (
-          <Alert className="border-green-200 bg-green-50/80 backdrop-blur-sm">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-700">{success}</AlertDescription>
-          </Alert>
-        )}
-
-        <Tabs defaultValue="login" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 bg-gray-100/80 backdrop-blur-sm p-1 rounded-xl">
-            <TabsTrigger
-              value="login"
-              className="flex items-center justify-center space-x-2 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200"
-            >
-              <LogIn className="h-4 w-4" />
-              <span>Sign In</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="register"
-              className="flex items-center justify-center space-x-2 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200"
-            >
-              <UserPlus className="h-4 w-4" />
-              <span>Sign Up</span>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="login" className="space-y-4">
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="login-username" className="text-sm font-medium text-gray-700">
-                  Username
-                </Label>
-                <Input
-                  id="login-username"
-                  type="text"
-                  placeholder="Enter your username"
-                  value={loginForm.username}
-                  onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
-                  className="h-12 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                  required
-                />
+    <Dialog open={isOpen} onOpenChange={() => {}}>
+      <DialogContent
+        className="sm:max-w-[425px] bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 border-purple-500/20 text-white"
+        hideClose
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 rounded-lg animate-pulse" />
+        <div className="relative z-10">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3 text-2xl">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center animate-pulse">
+                <Sparkles className="h-5 w-5 text-white" />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="login-password" className="text-sm font-medium text-gray-700">
-                  Password
-                </Label>
-                <Input
-                  id="login-password"
-                  type="password"
-                  placeholder="Enter your password"
-                  value={loginForm.password}
-                  onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                  className="h-12 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                  required
-                />
-              </div>
-              <Button
-                type="submit"
-                className="w-full h-12 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
-                disabled={isLoading}
+              <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                Welcome To OG SERVICES
+              </span>
+            </DialogTitle>
+            <DialogDescription className="text-gray-300">
+              Join the ultimate media streaming marketplace
+            </DialogDescription>
+          </DialogHeader>
+
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-6">
+            <TabsList className="grid w-full grid-cols-2 bg-slate-800/50 border border-purple-500/20">
+              <TabsTrigger value="login" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
+                Sign In
+              </TabsTrigger>
+              <TabsTrigger
+                value="register"
+                className="data-[state=active]:bg-purple-600 data-[state=active]:text-white"
               >
-                {isLoading ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    <span>Signing in...</span>
-                  </div>
-                ) : (
-                  "Sign In"
-                )}
-              </Button>
-            </form>
-          </TabsContent>
+                Register
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="register" className="space-y-4">
-            <form onSubmit={handleRegister} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="register-username" className="text-sm font-medium text-gray-700">
-                  Username
-                </Label>
-                <Input
-                  id="register-username"
-                  type="text"
-                  placeholder="Choose a username"
-                  value={registerForm.username}
-                  onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value })}
-                  className="h-12 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="register-email" className="text-sm font-medium text-gray-700">
-                  Email
-                </Label>
-                <Input
-                  id="register-email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={registerForm.email}
-                  onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
-                  className="h-12 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="register-password" className="text-sm font-medium text-gray-700">
-                  Password
-                </Label>
-                <Input
-                  id="register-password"
-                  type="password"
-                  placeholder="Create a password (min. 6 characters)"
-                  value={registerForm.password}
-                  onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
-                  className="h-12 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="register-confirm-password" className="text-sm font-medium text-gray-700">
-                  Confirm Password
-                </Label>
-                <Input
-                  id="register-confirm-password"
-                  type="password"
-                  placeholder="Confirm your password"
-                  value={registerForm.confirmPassword}
-                  onChange={(e) => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })}
-                  className="h-12 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                  required
-                />
-              </div>
-              <Button
-                type="submit"
-                className="w-full h-12 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    <span>Creating account...</span>
-                  </div>
-                ) : (
-                  "Create Account"
-                )}
-              </Button>
-            </form>
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="login">
+              <Card className="bg-slate-800/30 border-purple-500/20 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className="text-white">Welcome Back</CardTitle>
+                  <CardDescription className="text-gray-300">
+                    Sign in to access your premium media experience
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleLogin} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="username" className="text-gray-200">
+                        Username
+                      </Label>
+                      <Input
+                        id="username"
+                        type="text"
+                        placeholder="Enter your username"
+                        value={loginData.username}
+                        onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
+                        disabled={isLoading}
+                        className="bg-slate-700/50 border-purple-500/30 text-white placeholder:text-gray-400 focus:border-purple-400"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="password" className="text-gray-200">
+                        Password
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="password"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Enter your password"
+                          value={loginData.password}
+                          onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                          disabled={isLoading}
+                          className="bg-slate-700/50 border-purple-500/30 text-white placeholder:text-gray-400 focus:border-purple-400 pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-gray-400 hover:text-white"
+                          onClick={() => setShowPassword(!showPassword)}
+                          disabled={isLoading}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </div>
 
-        <div className="text-center text-xs text-gray-500 mt-4">
-          By signing up, you agree to our Terms of Service and Privacy Policy
+                    {error && (
+                      <Alert variant="destructive" className="bg-red-900/20 border-red-500/50 text-red-200">
+                        <AlertDescription>{error}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    <Button
+                      type="submit"
+                      className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Signing in...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          Sign In
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="register">
+              <Card className="bg-slate-800/30 border-purple-500/20 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className="text-white">Join the Community</CardTitle>
+                  <CardDescription className="text-gray-300">
+                    Create your account and start your premium journey
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleRegister} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="reg-username" className="text-gray-200">
+                        Username
+                      </Label>
+                      <Input
+                        id="reg-username"
+                        type="text"
+                        placeholder="Choose a username"
+                        value={registerData.username}
+                        onChange={(e) => setRegisterData({ ...registerData, username: e.target.value })}
+                        disabled={isLoading}
+                        className="bg-slate-700/50 border-purple-500/30 text-white placeholder:text-gray-400 focus:border-purple-400"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="text-gray-200">
+                        Email
+                      </Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="Enter your email"
+                        value={registerData.email}
+                        onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
+                        disabled={isLoading}
+                        className="bg-slate-700/50 border-purple-500/30 text-white placeholder:text-gray-400 focus:border-purple-400"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="reg-password" className="text-gray-200">
+                        Password
+                      </Label>
+                      <Input
+                        id="reg-password"
+                        type="password"
+                        placeholder="Create a password"
+                        value={registerData.password}
+                        onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
+                        disabled={isLoading}
+                        className="bg-slate-700/50 border-purple-500/30 text-white placeholder:text-gray-400 focus:border-purple-400"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirm-password" className="text-gray-200">
+                        Confirm Password
+                      </Label>
+                      <Input
+                        id="confirm-password"
+                        type="password"
+                        placeholder="Confirm your password"
+                        value={registerData.confirmPassword}
+                        onChange={(e) => setRegisterData({ ...registerData, confirmPassword: e.target.value })}
+                        disabled={isLoading}
+                        className="bg-slate-700/50 border-purple-500/30 text-white placeholder:text-gray-400 focus:border-purple-400"
+                      />
+                    </div>
+
+                    {error && (
+                      <Alert variant="destructive" className="bg-red-900/20 border-red-500/50 text-red-200">
+                        <AlertDescription>{error}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    <Button
+                      type="submit"
+                      className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creating account...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          Create Account
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </DialogContent>
     </Dialog>

@@ -1,205 +1,165 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card, CardContent } from "@/components/ui/card"
+import type React from "react"
+import { useRef, useState, useEffect } from "react"
+import { Canvas, useFrame } from "@react-three/fiber"
+import { OrbitControls, Html } from "@react-three/drei"
+import { type Mesh, TextureLoader } from "three"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Play, Star, Users, Database, Server, Zap } from "lucide-react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 
-interface SlideData {
-  id: string
-  title: string
-  subtitle: string
-  description: string
-  image: string
-  stats: {
-    label: string
-    value: string
-    icon: any
-  }[]
-  color: string
-}
-
-const slides: SlideData[] = [
+const slides = [
   {
-    id: "1",
-    title: "Ultimate Media Experience",
-    subtitle: "Stream Anywhere, Anytime",
-    description:
-      "Access your entire media library from any device with our advanced streaming technology and beautiful interface.",
-    image: "/diverse-movie-collection.png",
-    stats: [
-      { label: "Movies", value: "10K+", icon: Play },
-      { label: "TV Shows", value: "5K+", icon: Star },
-      { label: "Users", value: "50K+", icon: Users },
-    ],
-    color: "from-purple-600 to-blue-600",
+    id: 1,
+    title: "Fantasy Forest Adventure",
+    description: "Embark on an epic journey through mystical lands.",
+    image: "/fantasy-forest-movie.png",
   },
   {
-    id: "2",
-    title: "Powerful Server Management",
-    subtitle: "Enterprise-Grade Infrastructure",
-    description:
-      "Monitor and manage multiple Jellyfin servers with real-time analytics, performance metrics, and automated scaling.",
-    image: "/grand-library.png",
-    stats: [
-      { label: "Servers", value: "100+", icon: Server },
-      { label: "Libraries", value: "500+", icon: Database },
-      { label: "Uptime", value: "99.9%", icon: Zap },
-    ],
-    color: "from-green-600 to-teal-600",
+    id: 2,
+    title: "Noir Detective Story",
+    description: "Unravel a thrilling mystery in the shadows of the city.",
+    image: "/noir-detective-movie.png",
   },
   {
-    id: "3",
-    title: "Smart Content Discovery",
-    subtitle: "AI-Powered Recommendations",
-    description:
-      "Discover new content with our intelligent recommendation engine that learns your preferences and suggests perfect matches.",
-    image: "/tv-shows-collection.png",
-    stats: [
-      { label: "Genres", value: "50+", icon: Star },
-      { label: "Languages", value: "25+", icon: Users },
-      { label: "Quality", value: "4K HDR", icon: Play },
-    ],
-    color: "from-orange-600 to-red-600",
+    id: 3,
+    title: "Action War Epic",
+    description: "Experience intense battles and heroic sacrifices.",
+    image: "/action-war-movie.png",
+  },
+  {
+    id: 4,
+    title: "Space Exploration Saga",
+    description: "Journey to the stars and discover new galaxies.",
+    image: "/space-exploration-movie.png",
   },
 ]
 
-export function ThreeDHeroSlider() {
-  const [currentSlide, setCurrentSlide] = useState(0)
-  const [isAutoPlaying, setIsAutoPlaying] = useState(true)
+interface SlideMeshProps {
+  position: [number, number, number]
+  rotationY: number
+  textureUrl: string
+  title: string
+  description: string
+  isActive: boolean
+  onClick: () => void
+}
 
-  useEffect(() => {
-    if (!isAutoPlaying) return
+const SlideMesh: React.FC<SlideMeshProps> = ({
+  position,
+  rotationY,
+  textureUrl,
+  title,
+  description,
+  isActive,
+  onClick,
+}) => {
+  const meshRef = useRef<Mesh>(null)
+  const texture = new TextureLoader().load(textureUrl)
 
-    const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length)
-    }, 6000)
-
-    return () => clearInterval(interval)
-  }, [isAutoPlaying])
-
-  const goToSlide = (index: number) => {
-    setIsAutoPlaying(false)
-    setCurrentSlide(index)
-    setTimeout(() => setIsAutoPlaying(true), 10000)
-  }
-
-  const currentSlideData = slides[currentSlide]
+  useFrame(() => {
+    if (meshRef.current) {
+      // Optional: Add subtle animation if active
+      meshRef.current.scale.setScalar(isActive ? 1.05 : 1)
+    }
+  })
 
   return (
-    <div className="relative w-full max-w-6xl mx-auto">
-      {/* Main Slide */}
-      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-xl border border-white/10 rounded-3xl min-h-[600px]">
-        <div className={`absolute inset-0 bg-gradient-to-br ${currentSlideData.color} opacity-10`} />
-
-        <CardContent className="relative p-0 h-full">
-          <div className="grid lg:grid-cols-2 gap-8 items-center h-full min-h-[600px]">
-            {/* Content Side */}
-            <div className="p-8 lg:p-12 space-y-8">
-              <div className="space-y-4">
-                <div className="inline-block">
-                  <span
-                    className={`px-4 py-2 bg-gradient-to-r ${currentSlideData.color} text-white text-sm font-semibold rounded-full shadow-lg`}
-                  >
-                    {currentSlideData.subtitle}
-                  </span>
-                </div>
-
-                <h2 className="text-4xl lg:text-5xl font-bold text-white leading-tight">{currentSlideData.title}</h2>
-
-                <p className="text-lg text-white/80 leading-relaxed max-w-lg">{currentSlideData.description}</p>
-              </div>
-
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-4">
-                {currentSlideData.stats.map((stat, index) => (
-                  <div key={index} className="text-center">
-                    <div
-                      className={`w-12 h-12 mx-auto mb-2 rounded-xl bg-gradient-to-br ${currentSlideData.color} flex items-center justify-center shadow-lg`}
-                    >
-                      <stat.icon className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="text-2xl font-bold text-white">{stat.value}</div>
-                    <div className="text-sm text-white/60">{stat.label}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button
-                  size="lg"
-                  className={`bg-gradient-to-r ${currentSlideData.color} hover:opacity-90 text-white font-semibold px-8 py-4 rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300`}
-                >
-                  <Play className="w-5 h-5 mr-2" />
-                  Get Started
-                </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="border-white/30 text-white hover:bg-white/10 px-8 py-4 rounded-xl backdrop-blur-sm bg-transparent"
-                >
-                  Learn More
-                </Button>
-              </div>
-            </div>
-
-            {/* Image Side */}
-            <div className="relative p-8 lg:p-12">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-white/5 rounded-3xl backdrop-blur-sm" />
-                <div
-                  className={`absolute inset-0 bg-gradient-to-br ${currentSlideData.color} opacity-20 rounded-3xl`}
-                />
-
-                <img
-                  src={currentSlideData.image || "/placeholder.svg"}
-                  alt={currentSlideData.title}
-                  className="relative z-10 w-full h-auto rounded-3xl shadow-2xl transform hover:scale-105 transition-transform duration-700"
-                />
-
-                {/* Floating Elements */}
-                <div className="absolute -top-4 -right-4 w-24 h-24 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl opacity-80 animate-pulse" />
-                <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-gradient-to-br from-pink-400 to-purple-500 rounded-xl opacity-60 animate-bounce" />
-              </div>
-            </div>
+    <mesh position={position} rotation-y={rotationY} ref={meshRef} onClick={onClick}>
+      <planeGeometry args={[3, 1.8]} /> {/* Aspect ratio for 16:9 images */}
+      <meshBasicMaterial map={texture} transparent opacity={isActive ? 1 : 0.5} />
+      {isActive && (
+        <Html position={[0, 0, 0.01]} center>
+          <div className="w-[280px] p-4 bg-black/60 rounded-lg text-white text-center">
+            <h3 className="text-xl font-bold">{title}</h3>
+            <p className="text-sm mt-1">{description}</p>
+            <Button size="sm" className="mt-3">
+              View Details
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+        </Html>
+      )}
+    </mesh>
+  )
+}
 
-      {/* Slide Indicators */}
-      <div className="flex justify-center mt-8 space-x-3">
-        {slides.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => goToSlide(index)}
-            className={`w-4 h-4 rounded-full transition-all duration-300 ${
-              index === currentSlide
-                ? `bg-gradient-to-r ${currentSlideData.color} scale-125 shadow-lg`
-                : "bg-white/30 hover:bg-white/50"
-            }`}
-          />
-        ))}
-      </div>
+export function ThreeDHeroSlider() {
+  const [currentSlide, setCurrentSlide] = useState(0)
 
-      {/* Slide Thumbnails */}
-      <div className="flex justify-center mt-6 space-x-4">
-        {slides.map((slide, index) => (
-          <Card
-            key={slide.id}
-            className={`cursor-pointer transition-all duration-300 overflow-hidden ${
-              index === currentSlide
-                ? "ring-2 ring-white/50 scale-105 shadow-xl"
-                : "opacity-60 hover:opacity-80 hover:scale-105"
-            }`}
-            onClick={() => goToSlide(index)}
+  const goToNext = () => {
+    setCurrentSlide((prev) => (prev + 1) % slides.length)
+  }
+
+  const goToPrevious = () => {
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)
+  }
+
+  useEffect(() => {
+    const interval = setInterval(goToNext, 7000) // Auto-advance every 7 seconds
+    return () => clearInterval(interval)
+  }, [])
+
+  return (
+    <Card className="w-full h-[400px] flex flex-col">
+      <CardHeader>
+        <CardTitle>3D Hero Slider</CardTitle>
+      </CardHeader>
+      <CardContent className="flex-1 p-0 relative">
+        <Canvas camera={{ position: [0, 0, 3], fov: 75 }}>
+          <ambientLight intensity={0.8} />
+          <pointLight position={[10, 10, 10]} />
+          {slides.map((slide, index) => {
+            const angle = (index - currentSlide) * (Math.PI / 4) // Angle between slides
+            const radius = 2.5 // Distance from center
+            const x = Math.sin(angle) * radius
+            const z = Math.cos(angle) * radius - radius // Offset to keep active slide centered
+            const rotationY = -angle
+
+            return (
+              <SlideMesh
+                key={slide.id}
+                position={[x, 0, z]}
+                rotationY={rotationY}
+                textureUrl={slide.image}
+                title={slide.title}
+                description={slide.description}
+                isActive={index === currentSlide}
+                onClick={() => setCurrentSlide(index)}
+              />
+            )
+          })}
+          <OrbitControls enableZoom={false} enablePan={false} enableRotate={false} />
+        </Canvas>
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="bg-black/50 hover:bg-black/70 text-white rounded-full"
+            onClick={goToPrevious}
           >
-            <CardContent className="p-0 w-20 h-12">
-              <img src={slide.image || "/placeholder.svg"} alt={slide.title} className="w-full h-full object-cover" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
+            <ChevronLeft className="h-6 w-6" />
+            <span className="sr-only">Previous slide</span>
+          </Button>
+          {slides.map((_, index) => (
+            <button
+              key={index}
+              className={`h-2 w-2 rounded-full ${currentSlide === index ? "bg-white" : "bg-gray-400"}`}
+              onClick={() => setCurrentSlide(index)}
+              aria-label={`Go to slide ${index + 1}`}
+            />
+          ))}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="bg-black/50 hover:bg-black/70 text-white rounded-full"
+            onClick={goToNext}
+          >
+            <ChevronRight className="h-6 w-6" />
+            <span className="sr-only">Next slide</span>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

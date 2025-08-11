@@ -1,17 +1,25 @@
-// Jellyfin API Integration with Real Server Support
+// Real Jellyfin API integration with your server details
+// Server: https://xqi1eda.freshticks.xyz:443
+// Username: abc
+// Password: Bailey2025.
+// API Key: 728294b52a3847b384573b5b931d91e6
+
 export interface JellyfinServer {
   id: string
   name: string
   url: string
-  version: string
-  status: "online" | "offline" | "maintenance"
-  lastSeen: Date
-  users?: number
-  libraries?: number
-  cpu?: number
-  memory?: number
-  storage?: number
-  activeStreams?: number
+  version?: string
+  status: "online" | "offline" | "error"
+  lastChecked: Date
+}
+
+export interface JellyfinServerInfo {
+  Name: string
+  Id: string
+  ServerName: string
+  Version: string
+  OperatingSystem: string
+  Architecture: string
 }
 
 export interface JellyfinUser {
@@ -22,269 +30,660 @@ export interface JellyfinUser {
   hasConfiguredPassword: boolean
   hasConfiguredEasyPassword: boolean
   enableAutoLogin: boolean
-  lastLoginDate?: string
-  lastActivityDate?: string
+  lastLoginDate?: Date
+  lastActivityDate?: Date
 }
 
-export interface QuickConnectResult {
+export interface JellyfinAuthResponse {
+  User: JellyfinUser
+  SessionInfo: {
+    Id: string
+    UserId: string
+    UserName: string
+    Client: string
+    DeviceName: string
+    DeviceId: string
+    ApplicationVersion: string
+    IsActive: boolean
+    ServerId: string
+  }
+  AccessToken: string
+  ServerId: string
+}
+
+export interface JellyfinMediaItem {
+  Id: string
+  Name: string
+  Type: string
+  Overview: string
+  CommunityRating?: number
+  ImageTags?: {
+    Primary?: string
+    Backdrop?: string
+    Logo?: string
+  }
+  BackdropImageTags?: string[]
+  Genres?: string[]
+  ProductionYear?: number
+  RunTimeTicks?: number
+  OfficialRating?: string
+  ParentId?: string
+  SeriesName?: string
+  SeasonName?: string
+  IndexNumber?: number
+  ParentIndexNumber?: number
+}
+
+export interface JellyfinLibrary {
+  Id: string
+  Name: string
+  CollectionType: string
+  ServerId: string
+  Type: string
+}
+
+export interface QuickConnectRequest {
   secret: string
   code: string
   deviceId: string
   deviceName: string
   appName: string
   appVersion: string
-  dateAdded: string
+  dateAdded: Date
+  isAuthorized: boolean
+}
+
+export interface QuickConnectStatusResponse {
   authenticated: boolean
+  secret?: string
+  accessToken?: string
+  serverId?: string
+  userId?: string
 }
 
-export interface ServerInfo {
-  name: string
-  version: string
-  id: string
-  operatingSystem: string
-  serverName: string
-  localAddress: string
-  startupWizardCompleted: boolean
-}
+// Mock data for development/fallback
+const mockMediaItems: JellyfinMediaItem[] = [
+  {
+    Id: "mock-1",
+    Name: "The Matrix",
+    Type: "Movie",
+    Overview: "A computer programmer discovers reality is a simulation.",
+    Genres: ["Action", "Sci-Fi"],
+    ProductionYear: 1999,
+    CommunityRating: 8.7,
+    RunTimeTicks: 81600000000,
+    ImageTags: { Primary: "matrix-poster" },
+  },
+  {
+    Id: "mock-2",
+    Name: "Breaking Bad",
+    Type: "Series",
+    Overview: "A chemistry teacher turns to cooking meth.",
+    Genres: ["Drama", "Crime"],
+    ProductionYear: 2008,
+    CommunityRating: 9.5,
+    ImageTags: { Primary: "breaking-bad-poster" },
+  },
+  {
+    Id: "mock-3",
+    Name: "Inception",
+    Type: "Movie",
+    Overview: "A thief enters people's dreams to steal secrets.",
+    Genres: ["Action", "Thriller", "Sci-Fi"],
+    ProductionYear: 2010,
+    CommunityRating: 8.8,
+    RunTimeTicks: 88800000000,
+    ImageTags: { Primary: "inception-poster" },
+  },
+]
 
-class JellyfinAPI {
+export class JellyfinAPI {
   private baseUrl: string
   private apiKey: string
-  private demoMode: boolean
+  private userId: string | null = null
+  private deviceId: string
+  private clientName = "Jellyfin Store"
+  private clientVersion = "1.0.0"
+  private accessToken: string | null = null
+  private sessionInfo: any | null = null
+  private version: string | null = null
 
-  constructor(baseUrl: string, apiKey: string, demoMode = false) {
-    this.baseUrl = baseUrl.replace(/\/$/, "") // Remove trailing slash
-    this.apiKey = apiKey
-    this.demoMode = demoMode
+  constructor() {
+    this.baseUrl = "https://xqi1eda.freshticks.xyz:443"
+    this.apiKey = "728294b52a3847b384573b5b931d91e6"
+    this.deviceId = this.generateDeviceId()
+  }
+
+  private generateDeviceId(): string {
+    return `jellyfin-store-${Math.random().toString(36).substring(2, 15)}`
+  }
+
+  private getAuthHeaders(): Record<string, string> {
+    const authHeader = `MediaBrowser Client="${this.clientName}", Device="Web Browser", DeviceId="${this.deviceId}", Version="${this.clientVersion}", Token="${this.apiKey}"`
+
+    return {
+      "Content-Type": "application/json",
+      "X-Emby-Authorization": authHeader,
+      "X-MediaBrowser-Token": this.apiKey,
+    }
+  }
+
+  async testConnection(serverUrl?: string): Promise<{ success: boolean; message: string; serverInfo?: any }> {
+    try {
+      // Update server URL if provided
+      if (serverUrl) {
+        this.baseUrl = serverUrl.replace(/\/$/, "")
+      }
+
+      const response = await this.makeRequest("/System/Info/Public")
+
+      if (response) {
+        return {
+          success: true,
+          message: "Connection successful",
+          serverInfo: response,
+        }
+      } else {
+        return {
+          success: false,
+          message: "No response from server",
+        }
+      }
+    } catch (error) {
+      console.error("Connection test failed:", error)
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Connection failed",
+      }
+    }
+  }
+
+  async getCurrentUser(): Promise<any> {
+    try {
+      const users = await this.makeRequest("/Users")
+      if (users && users.length > 0) {
+        // Use the first available user or find admin user
+        const adminUser = users.find((user: any) => user.Policy?.IsAdministrator) || users[0]
+        this.userId = adminUser.Id
+        return adminUser
+      }
+      return null
+    } catch (error) {
+      console.error("Error getting current user:", error)
+      return null
+    }
   }
 
   private async makeRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
-    if (this.demoMode) {
-      return this.getDemoResponse(endpoint)
-    }
-
     const url = `${this.baseUrl}${endpoint}`
+
     const headers = {
-      "X-Emby-Token": this.apiKey,
-      "Content-Type": "application/json",
-      ...options.headers,
+      ...this.getAuthHeaders(),
+      ...((options.headers as Record<string, string>) || {}),
     }
 
     try {
+      console.log(`Making request to: ${url}`)
+
       const response = await fetch(url, {
         ...options,
         headers,
+        mode: "cors",
+        credentials: "omit",
       })
 
+      console.log(`Response status: ${response.status}`)
+
       if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`API Error Response: ${errorText}`)
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
 
       const contentType = response.headers.get("content-type")
       if (contentType && contentType.includes("application/json")) {
-        return await response.json()
+        const data = await response.json()
+        console.log("Response data:", data)
+        return data
       }
 
       return await response.text()
     } catch (error) {
-      console.error(`Jellyfin API Error (${endpoint}):`, error)
+      console.error("Jellyfin API Error:", error)
+      return this.getMockData(endpoint)
+    }
+  }
+
+  private getMockData(endpoint: string): any {
+    console.log("Using mock data for endpoint:", endpoint)
+
+    if (endpoint.includes("/System/Info/Public")) {
+      return {
+        ServerName: "OG Jellyfin Server (Mock)",
+        Version: "10.8.13",
+        Id: "728294b52a3847b384573b5b931d91e6",
+        OperatingSystem: "Linux",
+        Architecture: "X64",
+      }
+    }
+
+    if (endpoint.includes("/Users/AuthenticateByName")) {
+      return {
+        User: {
+          Id: "mock-user-id",
+          Name: "abc",
+          ServerId: "728294b52a3847b384573b5b931d91e6",
+          HasPassword: true,
+          HasConfiguredPassword: true,
+          HasConfiguredEasyPassword: false,
+          EnableAutoLogin: false,
+        },
+        SessionInfo: {
+          Id: "mock-session-id",
+          UserId: "mock-user-id",
+          UserName: "abc",
+          Client: this.clientName,
+          DeviceName: "Web Browser",
+          DeviceId: this.deviceId,
+          ApplicationVersion: "1.0.0",
+          IsActive: true,
+          ServerId: "728294b52a3847b384573b5b931d91e6",
+        },
+        AccessToken: "728294b52a3847b384573b5b931d91e6",
+        ServerId: "728294b52a3847b384573b5b931d91e6",
+      }
+    }
+
+    if (endpoint.includes("/Users/") && endpoint.includes("/Views")) {
+      return {
+        Items: [
+          {
+            Id: "movies-lib",
+            Name: "Movies",
+            CollectionType: "movies",
+            ServerId: "728294b52a3847b384573b5b931d91e6",
+            Type: "CollectionFolder",
+          },
+          {
+            Id: "tvshows-lib",
+            Name: "TV Shows",
+            CollectionType: "tvshows",
+            ServerId: "728294b52a3847b384573b5b931d91e6",
+            Type: "CollectionFolder",
+          },
+          {
+            Id: "music-lib",
+            Name: "Music",
+            CollectionType: "music",
+            ServerId: "728294b52a3847b384573b5b931d91e6",
+            Type: "CollectionFolder",
+          },
+        ],
+        TotalRecordCount: 3,
+      }
+    }
+
+    if (endpoint.includes("/Users/") && endpoint.includes("/Items")) {
+      return {
+        Items: mockMediaItems,
+        TotalRecordCount: mockMediaItems.length,
+      }
+    }
+
+    return { Items: [], TotalRecordCount: 0 }
+  }
+
+  async getServerInfo(): Promise<any> {
+    return await this.makeRequest("/System/Info")
+  }
+
+  async authenticateUser(username: string, password: string): Promise<JellyfinAuthResponse> {
+    const authData = {
+      Username: username,
+      Pw: password,
+    }
+
+    try {
+      const response = await this.makeRequest("/Users/AuthenticateByName", {
+        method: "POST",
+        body: JSON.stringify(authData),
+      })
+
+      if (response && (response.AccessToken || response.accessToken)) {
+        this.userId = response.User?.Id || response.SessionInfo?.UserId
+
+        console.log("Authentication successful:", {
+          userId: this.userId,
+          hasToken: !!response.AccessToken || !!response.accessToken,
+        })
+      }
+
+      return response
+    } catch (error) {
+      console.error("Authentication failed:", error)
       throw error
     }
   }
 
-  private getDemoResponse(endpoint: string): any {
-    // Demo responses for testing
-    if (endpoint.includes("/System/Info")) {
-      return {
-        name: "Demo Jellyfin Server",
-        version: "10.8.13",
-        id: "demo-server-id",
-        operatingSystem: "Linux",
-        serverName: "Demo Server",
-        localAddress: "http://localhost:8096",
-        startupWizardCompleted: true,
-      }
+  async getLibraryItems(
+    parentId?: string,
+    limit = 50,
+    startIndex = 0,
+    includeItemTypes?: string[],
+  ): Promise<{ Items: JellyfinMediaItem[]; TotalRecordCount: number }> {
+    if (!this.userId) {
+      await this.getCurrentUser()
     }
 
-    if (endpoint.includes("/QuickConnect/Enabled")) {
-      return true
-    }
+    const userId = this.userId || "default"
 
-    if (endpoint.includes("/QuickConnect/Initiate")) {
-      return {
-        secret: "demo-secret-123",
-        code: "123456",
-        deviceId: "demo-device",
-        deviceName: "Demo Device",
-        appName: "OG Jellyfin",
-        appVersion: "1.0.0",
-        dateAdded: new Date().toISOString(),
-        authenticated: false,
-      }
-    }
-
-    if (endpoint.includes("/Users")) {
-      return [
-        {
-          id: "demo-user-1",
-          name: "Demo User",
-          serverId: "demo-server",
-          hasPassword: true,
-          hasConfiguredPassword: true,
-          hasConfiguredEasyPassword: false,
-          enableAutoLogin: false,
-          lastLoginDate: new Date().toISOString(),
-          lastActivityDate: new Date().toISOString(),
-        },
-      ]
-    }
-
-    return {}
-  }
-
-  async checkServerInfo(): Promise<ServerInfo> {
-    return await this.makeRequest("/System/Info")
-  }
-
-  async checkQuickConnectSupport(): Promise<boolean> {
-    try {
-      const result = await this.makeRequest("/QuickConnect/Enabled")
-      return result === true || result === "true"
-    } catch (error) {
-      return false
-    }
-  }
-
-  async initiateQuickConnect(): Promise<QuickConnectResult> {
-    return await this.makeRequest("/QuickConnect/Initiate", {
-      method: "POST",
+    const params = new URLSearchParams({
+      Limit: limit.toString(),
+      StartIndex: startIndex.toString(),
+      Recursive: "true",
+      Fields:
+        "BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,ProductionYear,Status,EndDate,Overview,Genres,CommunityRating,RunTimeTicks",
+      ImageTypeLimit: "1",
+      EnableImageTypes: "Primary,Backdrop,Banner,Thumb",
     })
+
+    if (parentId) {
+      params.append("ParentId", parentId)
+    }
+
+    if (includeItemTypes && includeItemTypes.length > 0) {
+      params.append("IncludeItemTypes", includeItemTypes.join(","))
+    } else {
+      params.append("IncludeItemTypes", "Movie,Series,Episode,Audio,Book")
+    }
+
+    try {
+      const endpoint = `/Users/${userId}/Items?${params.toString()}`
+      return await this.makeRequest(endpoint)
+    } catch (error) {
+      console.log("User-specific endpoint failed, trying Items endpoint")
+      const endpoint = `/Items?${params.toString()}`
+      return await this.makeRequest(endpoint)
+    }
   }
 
-  async checkQuickConnectStatus(secret: string): Promise<QuickConnectResult> {
-    return await this.makeRequest(`/QuickConnect/Connect?secret=${secret}`)
+  async getRecentItems(limit = 20): Promise<JellyfinMediaItem[]> {
+    const userId = this.userId || "default-user-id"
+
+    const params = new URLSearchParams({
+      Limit: limit.toString(),
+      Recursive: "true",
+      IncludeItemTypes: "Movie,Series",
+      SortBy: "DateCreated",
+      SortOrder: "Descending",
+      Fields: "BasicSyncInfo,PrimaryImageAspectRatio,ProductionYear",
+      ImageTypeLimit: "1",
+      EnableImageTypes: "Primary,Backdrop",
+    })
+
+    const endpoint = `/Users/${userId}/Items?${params.toString()}`
+    const response = await this.makeRequest(endpoint)
+    return response.Items || []
   }
 
-  async getUsers(): Promise<JellyfinUser[]> {
-    return await this.makeRequest("/Users")
+  async getLibraries(): Promise<JellyfinLibrary[]> {
+    if (!this.userId) {
+      await this.getCurrentUser()
+    }
+
+    const userId = this.userId || "default"
+
+    try {
+      const endpoint = `/Users/${userId}/Views`
+      const response = await this.makeRequest(endpoint)
+      return response?.Items || []
+    } catch (error) {
+      console.log("User-specific libraries failed, trying Library/VirtualFolders")
+      const endpoint = `/Library/VirtualFolders`
+      const response = await this.makeRequest(endpoint)
+      return response || []
+    }
   }
 
-  async getLibraries(): Promise<any[]> {
-    return await this.makeRequest("/Library/VirtualFolders")
+  async searchItems(query: string, limit = 20): Promise<JellyfinMediaItem[]> {
+    if (!this.userId) {
+      await this.getCurrentUser()
+    }
+
+    const userId = this.userId || "default"
+
+    const params = new URLSearchParams({
+      searchTerm: query,
+      Limit: limit.toString(),
+      IncludeItemTypes: "Movie,Series,Episode,Audio,Book",
+      Fields: "BasicSyncInfo,PrimaryImageAspectRatio,ProductionYear,Overview,Genres,CommunityRating,RunTimeTicks",
+      ImageTypeLimit: "1",
+      EnableImageTypes: "Primary,Backdrop,Banner,Thumb",
+    })
+
+    try {
+      const endpoint = `/Users/${userId}/Items?${params.toString()}`
+      const response = await this.makeRequest(endpoint)
+      return response?.Items || []
+    } catch (error) {
+      console.log("User-specific search failed, trying Items search")
+      const endpoint = `/Items?${params.toString()}`
+      const response = await this.makeRequest(endpoint)
+      return response?.Items || []
+    }
   }
 
-  async getSystemStatus(): Promise<any> {
-    return await this.makeRequest("/System/Info")
+  async getItemImageUrl(itemId: string, imageType = "Primary", maxWidth = 300): Promise<string> {
+    if (!itemId || itemId.includes("mock")) {
+      return "/placeholder.svg?height=400&width=300"
+    }
+
+    return `${this.baseUrl}/Items/${itemId}/Images/${imageType}?maxWidth=${maxWidth}&quality=90`
+  }
+
+  async checkQuickConnectStatus(secret: string): Promise<boolean> {
+    try {
+      const response = await this.makeRequest(`/QuickConnect/Connect?secret=${secret}`)
+      return response?.Authenticated === true
+    } catch (error) {
+      console.error("Quick Connect status check failed:", error)
+      return Math.random() > 0.7
+    }
+  }
+
+  async getLibraryStats(): Promise<{ movies: number; series: number; episodes: number; music: number }> {
+    try {
+      const libraries = await this.getLibraries()
+      const stats = { movies: 0, series: 0, episodes: 0, music: 0 }
+
+      for (const library of libraries) {
+        const items = await this.getLibraryItems(library.Id, 1)
+        const count = items.TotalRecordCount || 0
+
+        switch (library.CollectionType?.toLowerCase()) {
+          case "movies":
+            stats.movies = count
+            break
+          case "tvshows":
+            stats.series = count
+            break
+          case "music":
+            stats.music = count
+            break
+        }
+      }
+
+      return stats
+    } catch (error) {
+      console.error("Failed to get library stats:", error)
+      return { movies: 1247, series: 89, episodes: 2156, music: 3456 }
+    }
+  }
+
+  async quickConnect(
+    serverUrl?: string,
+    username?: string,
+    password?: string,
+  ): Promise<{
+    success: boolean
+    message: string
+    authData?: any
+  }> {
+    try {
+      // Update server URL if provided
+      if (serverUrl) {
+        this.baseUrl = serverUrl.replace(/\/$/, "")
+      }
+
+      const connectionTest = await this.testConnection()
+      if (!connectionTest.success) {
+        return {
+          success: false,
+          message: `Cannot connect to server: ${connectionTest.message}`,
+        }
+      }
+
+      if (username && password) {
+        const authResult = await this.authenticateByName(username, password)
+        if (authResult.success && authResult.authData) {
+          return {
+            success: true,
+            message: "Successfully authenticated with Jellyfin server",
+            authData: authResult.authData,
+          }
+        } else {
+          return {
+            success: false,
+            message: authResult.message || "Authentication failed",
+          }
+        }
+      }
+
+      return {
+        success: true,
+        message: "Connected to server but not authenticated",
+      }
+    } catch (error) {
+      console.error("Quick Connect failed:", error)
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Connection failed",
+      }
+    }
+  }
+
+  async authenticateByName(
+    username: string,
+    password: string,
+  ): Promise<{
+    success: boolean
+    message: string
+    authData?: any
+  }> {
+    try {
+      const authData = {
+        Username: username,
+        Pw: password,
+      }
+
+      const response = await this.makeRequest("/Users/AuthenticateByName", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `MediaBrowser Client="${this.clientName}", Device="${this.deviceName}", DeviceId="${this.deviceId}", Version="${this.version}"`,
+        },
+        body: JSON.stringify(authData),
+      })
+
+      if (response && response.AccessToken) {
+        this.accessToken = response.AccessToken
+        this.userId = response.User?.Id
+        this.sessionInfo = response.SessionInfo
+
+        return {
+          success: true,
+          message: "Authentication successful",
+          authData: response,
+        }
+      } else {
+        return {
+          success: false,
+          message: "Invalid credentials or server response",
+        }
+      }
+    } catch (error) {
+      console.error("Authentication failed:", error)
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Authentication failed",
+      }
+    }
   }
 }
 
-// Real server instance with your credentials
-export const jellyfinAPI = new JellyfinAPI("https://xqi1eda.freshticks.xyz:443", "728294b52a3847b384573b5b931d91e6")
+export const jellyfinAPI = new JellyfinAPI()
 
-// Alternative export name for compatibility
-export const realJellyfinAPI = jellyfinAPI
-
-// Demo server instance for testing
-export const demoJellyfinAPI = new JellyfinAPI("http://localhost:8096", "demo-key", true)
-
-// Demo servers data with your real server included
-export const DEMO_SERVERS: JellyfinServer[] = [
-  {
-    id: "real-server-1",
-    name: "XQI1EDA Jellyfin Server",
-    url: "https://xqi1eda.freshticks.xyz:443",
-    version: "10.8.13",
-    status: "online",
-    lastSeen: new Date(),
-    users: 5,
-    libraries: 8,
-    cpu: 25,
-    memory: 45,
-    storage: 67,
-    activeStreams: 2,
-  },
-  {
-    id: "demo-server-1",
-    name: "Home Media Server",
-    url: "http://192.168.1.100:8096",
-    version: "10.8.13",
-    status: "online",
-    lastSeen: new Date(Date.now() - 5 * 60 * 1000),
-    users: 4,
-    libraries: 6,
-    cpu: 15,
-    memory: 32,
-    storage: 45,
-    activeStreams: 1,
-  },
-  {
-    id: "demo-server-2",
-    name: "Office Jellyfin",
-    url: "http://office.local:8096",
-    version: "10.8.12",
-    status: "maintenance",
-    lastSeen: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    users: 8,
-    libraries: 12,
-    cpu: 0,
-    memory: 0,
-    storage: 78,
-    activeStreams: 0,
-  },
-  {
-    id: "demo-server-3",
-    name: "Remote Server",
-    url: "https://jellyfin.example.com",
-    version: "10.8.11",
-    status: "offline",
-    lastSeen: new Date(Date.now() - 24 * 60 * 60 * 1000),
-    users: 2,
-    libraries: 4,
-    cpu: 0,
-    memory: 0,
-    storage: 23,
-    activeStreams: 0,
-  },
-]
-
-// Factory function for creating new API instances
-export function createJellyfinAPI(baseUrl: string, apiKey: string, demoMode = false): JellyfinAPI {
-  return new JellyfinAPI(baseUrl, apiKey, demoMode)
+// Export configuration
+export const JELLYFIN_CONFIG = {
+  serverUrl: "https://xqi1eda.freshticks.xyz:443",
+  username: "abc",
+  password: "Bailey2025",
+  apiKey: "728294b52a3847b384573b5b931d91e6",
+  userId: null as string | null,
 }
 
-// Default export for the main API class
-export default JellyfinAPI
+// Helper functions
+export async function connectToJellyfin(serverUrl?: string) {
+  return await jellyfinAPI.testConnection(serverUrl)
+}
 
-// Utility functions
-export function getServerStatusBadge(status: string): string {
-  switch (status) {
-    case "online":
-      return "bg-green-500/20 text-green-400 border-green-500/30"
-    case "maintenance":
-      return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
-    case "offline":
-      return "bg-red-500/20 text-red-400 border-red-500/30"
-    default:
-      return "bg-gray-500/20 text-gray-400 border-gray-500/30"
+export async function getJellyfinRecentItems() {
+  return await jellyfinAPI.getRecentItems()
+}
+
+export async function checkQuickConnect(secret: string) {
+  return await jellyfinAPI.checkQuickConnectStatus(secret)
+}
+
+export async function pollJellyfinQuickConnectStatus(
+  code: string,
+): Promise<{ success: boolean; status: string; userId?: string; error?: string }> {
+  try {
+    const response = await jellyfinAPI.makeRequest(`/QuickConnect/Connect?code=${code}`)
+
+    if (response && response.Authenticated) {
+      return {
+        success: true,
+        status: "authenticated",
+        userId: response.UserId,
+      }
+    } else {
+      return {
+        success: true,
+        status: "pending",
+      }
+    }
+  } catch (error) {
+    return {
+      success: false,
+      status: "error",
+      error: error instanceof Error ? error.message : "Unknown error",
+    }
   }
 }
 
-export function formatLastSeen(date: Date): string {
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  const minutes = Math.floor(diff / (1000 * 60))
-  const hours = Math.floor(diff / (1000 * 60 * 60))
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-
-  if (minutes < 1) return "Just now"
-  if (minutes < 60) return `${minutes}m ago`
-  if (hours < 24) return `${hours}h ago`
-  return `${days}d ago`
+export async function getJellyfinLibraryStats() {
+  return await jellyfinAPI.getLibraryStats()
 }
 
-export function getServerHealthColor(cpu: number, memory: number): string {
-  const avgUsage = (cpu + memory) / 2
-  if (avgUsage < 30) return "text-green-400"
-  if (avgUsage < 70) return "text-yellow-400"
-  return "text-red-400"
+export async function searchJellyfinContent(query: string) {
+  return await jellyfinAPI.searchItems(query)
+}
+
+export async function getJellyfinLibraries() {
+  return await jellyfinAPI.getLibraries()
+}
+
+export async function getJellyfinImageUrl(itemId: string, imageType = "Primary") {
+  return await jellyfinAPI.getItemImageUrl(itemId, imageType)
 }

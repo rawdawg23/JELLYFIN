@@ -2,282 +2,256 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
-import { jellyfinAPI } from "@/lib/jellyfin-api"
-import { embyAPI } from "@/lib/emby-api"
 
 interface User {
   id: string
   username: string
   email: string
-  displayName?: string
+  role: "admin" | "user" | "seller"
+  subscriptionTier: "free" | "premium" | "enterprise"
+  isVerified: boolean
+  createdAt: string
+  lastLogin: string
+  avatar?: string
   bio?: string
   location?: string
   website?: string
-  avatar?: string
-  role: "user" | "admin" | "moderator"
-  joinDate: string
-  lastActive: string
-  plan?: string
-  jellyfinQuickConnect?: {
-    connected: boolean
-    username?: string
-    userId?: string
-    serverId?: string
-    serverName?: string
-    connectedAt?: string
-    quickConnectCode?: string
+  socialLinks?: {
+    twitter?: string
+    discord?: string
+    github?: string
   }
-  embyConnect?: {
-    connected: boolean
-    username?: string
-    userId?: string
-    serverId?: string
-    serverName?: string
-    connectedAt?: string
-    accessToken?: string
-    libraries?: any[]
+  preferences?: {
+    theme: "light" | "dark" | "system"
+    notifications: boolean
+    emailUpdates: boolean
+  }
+  stats?: {
+    totalPurchases: number
+    totalSpent: number
+    memberSince: string
   }
 }
 
 interface AuthContextType {
   user: User | null
-  isAuthenticated: boolean
   login: (username: string, password: string) => Promise<boolean>
   logout: () => void
-  register: (username: string, email: string, password: string) => Promise<boolean>
-  updateProfile: (updates: Partial<User>) => void
-  validateQuickConnectCode: (code: string) => Promise<{ success: boolean; error?: string }>
-  disconnectJellyfin: () => void
-  connectEmby: (username: string, password: string) => Promise<boolean>
-  disconnectEmby: () => void
+  register: (userData: Partial<User> & { username: string; email: string; password: string }) => Promise<boolean>
+  updateProfile: (updates: Partial<User>) => Promise<boolean>
+  isLoading: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+// Mock users for demonstration
+const mockUsers: (User & { password: string })[] = [
+  {
+    id: "1",
+    username: "ogadmin",
+    email: "ogadmin@jellyfin.store",
+    password: "Ebony2025",
+    role: "admin",
+    subscriptionTier: "enterprise",
+    isVerified: true,
+    createdAt: "2023-01-01T00:00:00Z",
+    lastLogin: new Date().toISOString(),
+    avatar: "/placeholder-user.png",
+    bio: "System Administrator",
+    location: "United Kingdom",
+    preferences: {
+      theme: "dark",
+      notifications: true,
+      emailUpdates: true,
+    },
+    stats: {
+      totalPurchases: 0,
+      totalSpent: 0,
+      memberSince: "2023-01-01",
+    },
+  },
+  {
+    id: "2",
+    username: "johndoe",
+    email: "john@example.com",
+    password: "password123",
+    role: "user",
+    subscriptionTier: "premium",
+    isVerified: true,
+    createdAt: "2023-06-15T00:00:00Z",
+    lastLogin: new Date().toISOString(),
+    avatar: "/placeholder-user.png",
+    bio: "Movie enthusiast and Jellyfin power user",
+    location: "London, UK",
+    website: "https://johndoe.com",
+    socialLinks: {
+      twitter: "@johndoe",
+      discord: "johndoe#1234",
+    },
+    preferences: {
+      theme: "system",
+      notifications: true,
+      emailUpdates: false,
+    },
+    stats: {
+      totalPurchases: 15,
+      totalSpent: 299.99,
+      memberSince: "2023-06-15",
+    },
+  },
+  {
+    id: "3",
+    username: "seller123",
+    email: "seller@example.com",
+    password: "seller123",
+    role: "seller",
+    subscriptionTier: "premium",
+    isVerified: true,
+    createdAt: "2023-03-10T00:00:00Z",
+    lastLogin: new Date().toISOString(),
+    avatar: "/placeholder-user.png",
+    bio: "Professional Jellyfin server provider",
+    location: "Manchester, UK",
+    preferences: {
+      theme: "light",
+      notifications: true,
+      emailUpdates: true,
+    },
+    stats: {
+      totalPurchases: 5,
+      totalSpent: 149.99,
+      memberSince: "2023-03-10",
+    },
+  },
+]
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     // Check for stored user session
-    const storedUser = localStorage.getItem("jellyfin-user")
+    const storedUser = localStorage.getItem("jellyfin-store-user")
     if (storedUser) {
-      const userData = JSON.parse(storedUser)
-      setUser(userData)
-      setIsAuthenticated(true)
+      try {
+        const userData = JSON.parse(storedUser)
+        setUser(userData)
+      } catch (error) {
+        console.error("Error parsing stored user data:", error)
+        localStorage.removeItem("jellyfin-store-user")
+      }
     }
+    setIsLoading(false)
   }, [])
 
   const login = async (username: string, password: string): Promise<boolean> => {
-    try {
-      // Check for admin credentials
-      if (username === "ogadmin" && password === "Ebony2025") {
-        const adminUser: User = {
-          id: "admin-001",
-          username: "ogadmin",
-          email: "admin@ogjellyfin.com",
-          displayName: "OG Admin",
-          bio: "Administrator of OG Jellyfin platform",
-          location: "Server Room",
-          website: "https://ogjellyfin.com",
-          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=admin`,
-          role: "admin",
-          joinDate: "2024-01-01T00:00:00Z",
-          lastActive: new Date().toISOString(),
-          plan: "admin",
-        }
+    setIsLoading(true)
 
-        setUser(adminUser)
-        setIsAuthenticated(true)
-        localStorage.setItem("jellyfin-user", JSON.stringify(adminUser))
-        return true
+    // Simulate API call delay
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+
+    const foundUser = mockUsers.find((u) => u.username === username && u.password === password)
+
+    if (foundUser) {
+      const { password: _, ...userWithoutPassword } = foundUser
+      const userWithUpdatedLogin = {
+        ...userWithoutPassword,
+        lastLogin: new Date().toISOString(),
       }
 
-      // Mock authentication for regular users
-      const mockUser: User = {
-        id: "user-" + Date.now(),
-        username,
-        email: `${username.toLowerCase()}@example.com`,
-        displayName: username,
-        bio: `Hello, I'm ${username}!`,
-        location: "",
-        website: "",
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
-        role: "user",
-        joinDate: new Date().toISOString(),
-        lastActive: new Date().toISOString(),
-        plan: "premium",
-      }
-
-      setUser(mockUser)
-      setIsAuthenticated(true)
-      localStorage.setItem("jellyfin-user", JSON.stringify(mockUser))
+      setUser(userWithUpdatedLogin)
+      localStorage.setItem("jellyfin-store-user", JSON.stringify(userWithUpdatedLogin))
+      setIsLoading(false)
       return true
-    } catch (error) {
-      return false
     }
-  }
 
-  const register = async (username: string, email: string, password: string): Promise<boolean> => {
-    try {
-      // Mock registration
-      const mockUser: User = {
-        id: "user-" + Date.now(),
-        username,
-        email,
-        displayName: username,
-        bio: `Hello, I'm ${username}!`,
-        location: "",
-        website: "",
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
-        role: "user",
-        joinDate: new Date().toISOString(),
-        lastActive: new Date().toISOString(),
-        plan: "basic",
-      }
-
-      setUser(mockUser)
-      setIsAuthenticated(true)
-      localStorage.setItem("jellyfin-user", JSON.stringify(mockUser))
-      return true
-    } catch (error) {
-      return false
-    }
+    setIsLoading(false)
+    return false
   }
 
   const logout = () => {
     setUser(null)
-    setIsAuthenticated(false)
-    localStorage.removeItem("jellyfin-user")
-    localStorage.removeItem("emby-connection")
-    embyAPI.logout()
+    localStorage.removeItem("jellyfin-store-user")
   }
 
-  const updateProfile = (updates: Partial<User>) => {
-    if (user) {
-      const updatedUser = { ...user, ...updates }
-      setUser(updatedUser)
-      localStorage.setItem("jellyfin-user", JSON.stringify(updatedUser))
-    }
-  }
+  const register = async (
+    userData: Partial<User> & { username: string; email: string; password: string },
+  ): Promise<boolean> => {
+    setIsLoading(true)
 
-  const validateQuickConnectCode = async (code: string): Promise<{ success: boolean; error?: string }> => {
-    try {
-      // Use the actual Jellyfin API to link the PIN
-      const linkResult = await jellyfinAPI.linkQuickConnectPin(code)
+    // Simulate API call delay
+    await new Promise((resolve) => setTimeout(resolve, 1500))
 
-      if (linkResult.success) {
-        const jellyfinQuickConnectData = {
-          connected: true,
-          username: user?.username || "JellyfinUser",
-          userId: "jellyfin-" + Date.now(),
-          serverId: "og-jellyfin-server",
-          serverName: "OG JELLYFIN Server",
-          connectedAt: new Date().toISOString(),
-          quickConnectCode: code,
-        }
-
-        if (user) {
-          const updatedUser = { ...user, jellyfinQuickConnect: jellyfinQuickConnectData }
-          setUser(updatedUser)
-          localStorage.setItem("jellyfin-user", JSON.stringify(updatedUser))
-        }
-
-        return { success: true }
-      } else {
-        return { success: false, error: linkResult.error || "Failed to link PIN to server" }
-      }
-    } catch (error) {
-      return { success: false, error: "Connection failed. Please try again." }
-    }
-  }
-
-  const disconnectJellyfin = () => {
-    if (user) {
-      // Disconnect from the actual server
-      jellyfinAPI.disconnectQuickConnect().catch(console.error)
-
-      const updatedUser = {
-        ...user,
-        jellyfinQuickConnect: {
-          connected: false,
-          quickConnectCode: undefined,
-          username: undefined,
-          userId: undefined,
-          serverId: undefined,
-          serverName: undefined,
-          connectedAt: undefined,
-        },
-      }
-      setUser(updatedUser)
-      localStorage.setItem("jellyfin-user", JSON.stringify(updatedUser))
-    }
-  }
-
-  const connectEmby = async (username: string, password: string): Promise<boolean> => {
-    try {
-      // Use real Emby API
-      const result = await embyAPI.authenticateUser(username, password)
-
-      if (result.success && result.user && result.accessToken) {
-        // Get user libraries
-        const libraries = await embyAPI.getLibraries(result.user.Id)
-
-        const embyConnectData = {
-          connected: true,
-          username: result.user.Name,
-          userId: result.user.Id,
-          serverId: "og-emby-server",
-          serverName: "OG Emby Server",
-          connectedAt: new Date().toISOString(),
-          accessToken: result.accessToken,
-          libraries,
-        }
-
-        if (user) {
-          const updatedUser = { ...user, embyConnect: embyConnectData }
-          setUser(updatedUser)
-          localStorage.setItem("jellyfin-user", JSON.stringify(updatedUser))
-        }
-
-        return true
-      } else {
-        throw new Error(result.error || "Authentication failed")
-      }
-    } catch (error) {
-      console.error("Emby connection error:", error)
+    // Check if username or email already exists
+    const existingUser = mockUsers.find((u) => u.username === userData.username || u.email === userData.email)
+    if (existingUser) {
+      setIsLoading(false)
       return false
     }
-  }
 
-  const disconnectEmby = () => {
-    if (user) {
-      embyAPI.logout()
-      const updatedUser = { ...user, embyConnect: { connected: false } }
-      setUser(updatedUser)
-      localStorage.setItem("jellyfin-user", JSON.stringify(updatedUser))
-      localStorage.removeItem("emby-connection")
+    const newUser: User = {
+      id: Date.now().toString(),
+      username: userData.username,
+      email: userData.email,
+      role: "user",
+      subscriptionTier: "free",
+      isVerified: false,
+      createdAt: new Date().toISOString(),
+      lastLogin: new Date().toISOString(),
+      preferences: {
+        theme: "system",
+        notifications: true,
+        emailUpdates: true,
+      },
+      stats: {
+        totalPurchases: 0,
+        totalSpent: 0,
+        memberSince: new Date().toISOString().split("T")[0],
+      },
+      ...userData,
     }
+
+    // Add to mock users (in real app, this would be an API call)
+    mockUsers.push({ ...newUser, password: userData.password })
+
+    setUser(newUser)
+    localStorage.setItem("jellyfin-store-user", JSON.stringify(newUser))
+    setIsLoading(false)
+    return true
   }
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated,
-        login,
-        logout,
-        register,
-        updateProfile,
-        validateQuickConnectCode,
-        disconnectJellyfin,
-        connectEmby,
-        disconnectEmby,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  )
+  const updateProfile = async (updates: Partial<User>): Promise<boolean> => {
+    if (!user) return false
+
+    setIsLoading(true)
+
+    // Simulate API call delay
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+
+    const updatedUser = { ...user, ...updates }
+    setUser(updatedUser)
+    localStorage.setItem("jellyfin-store-user", JSON.stringify(updatedUser))
+
+    // Update in mock users array
+    const userIndex = mockUsers.findIndex((u) => u.id === user.id)
+    if (userIndex !== -1) {
+      mockUsers[userIndex] = { ...mockUsers[userIndex], ...updates }
+    }
+
+    setIsLoading(false)
+    return true
+  }
+
+  const value: AuthContextType = {
+    user,
+    login,
+    logout,
+    register,
+    updateProfile,
+    isLoading,
+  }
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {
@@ -287,3 +261,6 @@ export function useAuth() {
   }
   return context
 }
+
+// Export alias for backward compatibility
+export const useAuthStore = useAuth
