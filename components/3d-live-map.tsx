@@ -1,572 +1,573 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useRef, useState, useEffect } from "react"
 import { Canvas, useFrame, useLoader } from "@react-three/fiber"
-import { OrbitControls, Sphere, Html } from "@react-three/drei"
-import { TextureLoader, Vector3 } from "three"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { OrbitControls, Sphere, Environment, PerspectiveCamera } from "@react-three/drei"
+import * as THREE from "three"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Users, Play, Globe, MapPin, Activity, Pause, Clock, Server, Monitor } from "lucide-react"
+import {
+  GlobeIcon,
+  UsersIcon,
+  MapPinIcon,
+  ActivityIcon,
+  ZapIcon,
+  EyeIcon,
+  ClockIcon,
+  WifiIcon,
+  PlayIcon,
+  PauseIcon,
+} from "lucide-react"
 
+// Mock user data with locations
 interface LiveUser {
   id: string
   username: string
-  displayName: string
   country: string
   city: string
-  coordinates: [number, number] // [lat, lng]
-  status: "streaming" | "browsing" | "idle" | "offline"
-  lastActive: Date
-  connectedServer?: string
-  currentActivity?: string
+  lat: number
+  lng: number
+  isActive: boolean
+  lastSeen: Date
+  activity: "streaming" | "browsing" | "idle" | "offline"
+  serverConnected?: string
   avatar: string
-  joinedAt: Date
-  deviceType: "desktop" | "mobile" | "tablet" | "tv"
 }
 
-// Mock live users data
 const LIVE_USERS: LiveUser[] = [
   {
-    id: "user-1",
-    username: "moviebuff_uk",
-    displayName: "Alex Thompson",
+    id: "1",
+    username: "MovieFan_UK",
     country: "United Kingdom",
     city: "London",
-    coordinates: [51.5074, -0.1278],
-    status: "streaming",
-    lastActive: new Date(),
-    connectedServer: "XQI1EDA Server",
-    currentActivity: "Watching: The Matrix",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=alex",
-    joinedAt: new Date(Date.now() - 86400000 * 30),
-    deviceType: "desktop",
+    lat: 51.5074,
+    lng: -0.1278,
+    isActive: true,
+    lastSeen: new Date(),
+    activity: "streaming",
+    serverConnected: "XQI1EDA Server",
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=MovieFan_UK",
   },
   {
-    id: "user-2",
-    username: "anime_lover_jp",
-    displayName: "Yuki Tanaka",
-    country: "Japan",
-    city: "Tokyo",
-    coordinates: [35.6762, 139.6503],
-    status: "browsing",
-    lastActive: new Date(Date.now() - 300000),
-    connectedServer: "XQI1EDA Server",
-    currentActivity: "Browsing Anime Collection",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=yuki",
-    joinedAt: new Date(Date.now() - 86400000 * 15),
-    deviceType: "mobile",
-  },
-  {
-    id: "user-3",
-    username: "series_addict_us",
-    displayName: "Sarah Johnson",
+    id: "2",
+    username: "TechGuru_US",
     country: "United States",
     city: "New York",
-    coordinates: [40.7128, -74.006],
-    status: "streaming",
-    lastActive: new Date(Date.now() - 120000),
-    connectedServer: "Home Server",
-    currentActivity: "Watching: Breaking Bad S3E7",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=sarah",
-    joinedAt: new Date(Date.now() - 86400000 * 45),
-    deviceType: "tv",
+    lat: 40.7128,
+    lng: -74.006,
+    isActive: true,
+    lastSeen: new Date(Date.now() - 2 * 60 * 1000),
+    activity: "browsing",
+    serverConnected: "Home Server",
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=TechGuru_US",
   },
   {
-    id: "user-4",
-    username: "music_master_de",
-    displayName: "Hans Mueller",
+    id: "3",
+    username: "AnimeLover_JP",
+    country: "Japan",
+    city: "Tokyo",
+    lat: 35.6762,
+    lng: 139.6503,
+    isActive: false,
+    lastSeen: new Date(Date.now() - 15 * 60 * 1000),
+    activity: "idle",
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=AnimeLover_JP",
+  },
+  {
+    id: "4",
+    username: "MusicMaster_DE",
     country: "Germany",
     city: "Berlin",
-    coordinates: [52.52, 13.405],
-    status: "idle",
-    lastActive: new Date(Date.now() - 900000),
-    connectedServer: "XQI1EDA Server",
-    currentActivity: "Last played: Classical Playlist",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=hans",
-    joinedAt: new Date(Date.now() - 86400000 * 60),
-    deviceType: "desktop",
+    lat: 52.52,
+    lng: 13.405,
+    isActive: true,
+    lastSeen: new Date(Date.now() - 1 * 60 * 1000),
+    activity: "streaming",
+    serverConnected: "Office Server",
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=MusicMaster_DE",
   },
   {
-    id: "user-5",
-    username: "documentary_fan_ca",
-    displayName: "Emma Wilson",
+    id: "5",
+    username: "SeriesBinger_CA",
     country: "Canada",
     city: "Toronto",
-    coordinates: [43.6532, -79.3832],
-    status: "streaming",
-    lastActive: new Date(Date.now() - 60000),
-    connectedServer: "XQI1EDA Server",
-    currentActivity: "Watching: Planet Earth II",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=emma",
-    joinedAt: new Date(Date.now() - 86400000 * 20),
-    deviceType: "tablet",
+    lat: 43.6532,
+    lng: -79.3832,
+    isActive: true,
+    lastSeen: new Date(),
+    activity: "streaming",
+    serverConnected: "XQI1EDA Server",
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=SeriesBinger_CA",
   },
   {
-    id: "user-6",
-    username: "aussie_streamer",
-    displayName: "Jake Mitchell",
+    id: "6",
+    username: "DocuFan_AU",
     country: "Australia",
     city: "Sydney",
-    coordinates: [-33.8688, 151.2093],
-    status: "browsing",
-    lastActive: new Date(Date.now() - 180000),
-    connectedServer: "Remote Server",
-    currentActivity: "Browsing Movies",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=jake",
-    joinedAt: new Date(Date.now() - 86400000 * 10),
-    deviceType: "mobile",
+    lat: -33.8688,
+    lng: 151.2093,
+    isActive: false,
+    lastSeen: new Date(Date.now() - 30 * 60 * 1000),
+    activity: "offline",
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=DocuFan_AU",
   },
   {
-    id: "user-7",
-    username: "french_cinema_fr",
-    displayName: "Marie Dubois",
+    id: "7",
+    username: "RetroGamer_FR",
     country: "France",
     city: "Paris",
-    coordinates: [48.8566, 2.3522],
-    status: "offline",
-    lastActive: new Date(Date.now() - 3600000),
-    connectedServer: "XQI1EDA Server",
-    currentActivity: "Last watched: Amélie",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=marie",
-    joinedAt: new Date(Date.now() - 86400000 * 35),
-    deviceType: "desktop",
+    lat: 48.8566,
+    lng: 2.3522,
+    isActive: true,
+    lastSeen: new Date(Date.now() - 5 * 60 * 1000),
+    activity: "browsing",
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=RetroGamer_FR",
   },
   {
-    id: "user-8",
-    username: "brazilian_beats",
-    displayName: "Carlos Silva",
+    id: "8",
+    username: "SportsFan_BR",
     country: "Brazil",
     city: "São Paulo",
-    coordinates: [-23.5505, -46.6333],
-    status: "streaming",
-    lastActive: new Date(Date.now() - 30000),
-    connectedServer: "XQI1EDA Server",
-    currentActivity: "Listening: Bossa Nova Mix",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=carlos",
-    joinedAt: new Date(Date.now() - 86400000 * 25),
-    deviceType: "mobile",
+    lat: -23.5505,
+    lng: -46.6333,
+    isActive: true,
+    lastSeen: new Date(),
+    activity: "streaming",
+    serverConnected: "Remote Server",
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=SportsFan_BR",
   },
 ]
 
-// Convert lat/lng to 3D coordinates on sphere
-function latLngToVector3(lat: number, lng: number, radius = 2): Vector3 {
+// Convert lat/lng to 3D sphere coordinates
+function latLngToVector3(lat: number, lng: number, radius = 2) {
   const phi = (90 - lat) * (Math.PI / 180)
   const theta = (lng + 180) * (Math.PI / 180)
 
-  const x = -(radius * Math.sin(phi) * Math.cos(theta))
-  const z = radius * Math.sin(phi) * Math.sin(theta)
-  const y = radius * Math.cos(phi)
-
-  return new Vector3(x, y, z)
+  return new THREE.Vector3(
+    -radius * Math.sin(phi) * Math.cos(theta),
+    radius * Math.cos(phi),
+    radius * Math.sin(phi) * Math.sin(theta),
+  )
 }
 
-// 3D Earth Component
-function Earth({ autoRotate }: { autoRotate: boolean }) {
-  const meshRef = useRef<any>()
-  const earthTexture = useLoader(TextureLoader, "/dark-blue-earth-map.png")
+// User marker component
+function UserMarker({ user, onClick }: { user: LiveUser; onClick: (user: LiveUser) => void }) {
+  const meshRef = useRef<THREE.Mesh>(null)
+  const position = latLngToVector3(user.lat, user.lng, 2.05)
 
-  useFrame((state, delta) => {
-    if (meshRef.current && autoRotate) {
-      meshRef.current.rotation.y += delta * 0.1
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.lookAt(state.camera.position)
+      // Floating animation
+      meshRef.current.position.y = position.y + Math.sin(state.clock.elapsedTime * 2) * 0.02
+    }
+  })
+
+  const getActivityColor = () => {
+    switch (user.activity) {
+      case "streaming":
+        return "#10b981" // Green
+      case "browsing":
+        return "#3b82f6" // Blue
+      case "idle":
+        return "#f59e0b" // Yellow
+      case "offline":
+        return "#ef4444" // Red
+      default:
+        return "#6b7280" // Gray
+    }
+  }
+
+  return (
+    <mesh
+      ref={meshRef}
+      position={[position.x, position.y, position.z]}
+      onClick={() => onClick(user)}
+      onPointerOver={(e) => {
+        e.stopPropagation()
+        document.body.style.cursor = "pointer"
+      }}
+      onPointerOut={() => {
+        document.body.style.cursor = "auto"
+      }}
+    >
+      <sphereGeometry args={[0.03, 16, 16]} />
+      <meshStandardMaterial
+        color={getActivityColor()}
+        emissive={getActivityColor()}
+        emissiveIntensity={user.isActive ? 0.3 : 0.1}
+        transparent
+        opacity={user.isActive ? 1 : 0.6}
+      />
+
+      {/* Pulsing ring for active users */}
+      {user.isActive && (
+        <mesh position={[0, 0, 0]}>
+          <ringGeometry args={[0.05, 0.08, 32]} />
+          <meshBasicMaterial color={getActivityColor()} transparent opacity={0.4} side={THREE.DoubleSide} />
+        </mesh>
+      )}
+    </mesh>
+  )
+}
+
+// Connection lines between users and servers
+function ConnectionLines({ users }: { users: LiveUser[] }) {
+  const linesRef = useRef<THREE.Group>(null)
+
+  useFrame((state) => {
+    if (linesRef.current) {
+      linesRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.1) * 0.1
+    }
+  })
+
+  const activeUsers = users.filter((user) => user.isActive && user.serverConnected)
+
+  return (
+    <group ref={linesRef}>
+      {activeUsers.map((user) => {
+        const userPos = latLngToVector3(user.lat, user.lng, 2.05)
+        const serverPos = new THREE.Vector3(0, 2.5, 0) // Server at top
+
+        const points = [userPos, serverPos]
+        const geometry = new THREE.BufferGeometry().setFromPoints(points)
+
+        return (
+          <line key={user.id}>
+            <bufferGeometry attach="geometry" {...geometry} />
+            <lineBasicMaterial attach="material" color="#8b5cf6" transparent opacity={0.3} linewidth={2} />
+          </line>
+        )
+      })}
+    </group>
+  )
+}
+
+// 3D Globe component
+function GlobeComponent({ users, onUserClick }: { users: LiveUser[]; onUserClick: (user: LiveUser) => void }) {
+  const globeRef = useRef<THREE.Mesh>(null)
+  const [texture] = useLoader(THREE.TextureLoader, ["/dark-blue-earth-map.png"])
+
+  useFrame((state) => {
+    if (globeRef.current) {
+      globeRef.current.rotation.y += 0.002
     }
   })
 
   return (
     <group>
-      {/* Earth Sphere */}
-      <Sphere ref={meshRef} args={[2, 64, 64]}>
-        <meshPhongMaterial map={earthTexture} />
+      {/* Main Globe */}
+      <Sphere ref={globeRef} args={[2, 64, 64]}>
+        <meshStandardMaterial map={texture} transparent opacity={0.8} emissive="#1e293b" emissiveIntensity={0.1} />
       </Sphere>
 
-      {/* Atmosphere Glow */}
-      <Sphere args={[2.05, 64, 64]}>
-        <meshBasicMaterial color="#4FC3F7" transparent opacity={0.1} />
+      {/* Atmosphere glow */}
+      <Sphere args={[2.1, 64, 64]}>
+        <meshBasicMaterial color="#3b82f6" transparent opacity={0.1} side={THREE.BackSide} />
       </Sphere>
+
+      {/* User markers */}
+      {users.map((user) => (
+        <UserMarker key={user.id} user={user} onClick={onUserClick} />
+      ))}
+
+      {/* Connection lines */}
+      <ConnectionLines users={users} />
+
+      {/* Server indicator at top */}
+      <mesh position={[0, 2.5, 0]}>
+        <boxGeometry args={[0.1, 0.1, 0.1]} />
+        <meshStandardMaterial color="#8b5cf6" emissive="#8b5cf6" emissiveIntensity={0.5} />
+      </mesh>
     </group>
   )
 }
 
-// User Marker Component
-function UserMarker({
-  user,
-  onClick,
-  isSelected,
-}: {
-  user: LiveUser
-  onClick: () => void
-  isSelected: boolean
-}) {
-  const position = latLngToVector3(user.coordinates[0], user.coordinates[1], 2.1)
-  const ringRef = useRef<any>()
+// User info panel
+function UserInfoPanel({ user, onClose }: { user: LiveUser | null; onClose: () => void }) {
+  if (!user) return null
 
-  useFrame((state) => {
-    if (ringRef.current && user.status === "streaming") {
-      ringRef.current.rotation.z = state.clock.elapsedTime * 2
-      ringRef.current.scale.setScalar(1 + Math.sin(state.clock.elapsedTime * 3) * 0.1)
-    }
-  })
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
+  const getActivityIcon = () => {
+    switch (user.activity) {
       case "streaming":
-        return "#00ff88"
+        return <PlayIcon className="w-4 h-4" />
       case "browsing":
-        return "#00aaff"
+        return <EyeIcon className="w-4 h-4" />
       case "idle":
-        return "#ffaa00"
+        return <PauseIcon className="w-4 h-4" />
       case "offline":
-        return "#ff4444"
+        return <WifiIcon className="w-4 h-4" />
       default:
-        return "#ffffff"
+        return <ActivityIcon className="w-4 h-4" />
+    }
+  }
+
+  const getActivityColor = () => {
+    switch (user.activity) {
+      case "streaming":
+        return "bg-green-500/20 text-green-400 border-green-500/30"
+      case "browsing":
+        return "bg-blue-500/20 text-blue-400 border-blue-500/30"
+      case "idle":
+        return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+      case "offline":
+        return "bg-red-500/20 text-red-400 border-red-500/30"
+      default:
+        return "bg-gray-500/20 text-gray-400 border-gray-500/30"
     }
   }
 
   return (
-    <group position={position}>
-      {/* Pulsing Ring for Active Users */}
-      {user.status === "streaming" && (
-        <mesh ref={ringRef}>
-          <ringGeometry args={[0.08, 0.12, 16]} />
-          <meshBasicMaterial color={getStatusColor(user.status)} transparent opacity={0.6} />
-        </mesh>
-      )}
-
-      {/* User Marker */}
-      <mesh onClick={onClick}>
-        <sphereGeometry args={[0.05, 16, 16]} />
-        <meshBasicMaterial
-          color={getStatusColor(user.status)}
-          emissive={getStatusColor(user.status)}
-          emissiveIntensity={isSelected ? 0.5 : 0.2}
-        />
-      </mesh>
-
-      {/* Connection Line to Earth */}
-      <line>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            count={2}
-            array={new Float32Array([0, 0, 0, -position.x * 0.1, -position.y * 0.1, -position.z * 0.1])}
-            itemSize={3}
-          />
-        </bufferGeometry>
-        <lineBasicMaterial color={getStatusColor(user.status)} transparent opacity={0.3} />
-      </line>
-
-      {/* User Info Popup */}
-      {isSelected && (
-        <Html distanceFactor={10} position={[0, 0.2, 0]}>
-          <div className="bg-black/80 backdrop-blur-xl border border-white/20 rounded-2xl p-4 text-white min-w-[200px] pointer-events-none">
-            <div className="flex items-center gap-3 mb-2">
-              <Avatar className="w-8 h-8">
-                <AvatarImage src={user.avatar || "/placeholder.svg"} />
-                <AvatarFallback>{user.displayName[0]}</AvatarFallback>
-              </Avatar>
-              <div>
-                <h4 className="font-semibold text-sm">{user.displayName}</h4>
-                <p className="text-xs text-white/60">@{user.username}</p>
-              </div>
-            </div>
-            <div className="space-y-1 text-xs">
-              <p>
-                <MapPin className="w-3 h-3 inline mr-1" />
+    <Card className="absolute top-4 right-4 w-80 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl z-10">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img
+              src={user.avatar || "/placeholder.svg"}
+              alt={user.username}
+              className="w-10 h-10 rounded-full border-2 border-purple-500/50"
+            />
+            <div>
+              <CardTitle className="text-white text-lg">{user.username}</CardTitle>
+              <p className="text-white/60 text-sm">
                 {user.city}, {user.country}
               </p>
-              <p>
-                <Activity className="w-3 h-3 inline mr-1" />
-                {user.currentActivity}
-              </p>
-              <Badge
-                className={`text-xs ${
-                  user.status === "streaming"
-                    ? "bg-green-500/20 text-green-400"
-                    : user.status === "browsing"
-                      ? "bg-blue-500/20 text-blue-400"
-                      : user.status === "idle"
-                        ? "bg-yellow-500/20 text-yellow-400"
-                        : "bg-red-500/20 text-red-400"
-                }`}
-              >
-                {user.status.toUpperCase()}
-              </Badge>
             </div>
           </div>
-        </Html>
-      )}
-    </group>
+          <Button
+            onClick={onClose}
+            variant="ghost"
+            size="sm"
+            className="text-white/60 hover:text-white hover:bg-white/10 rounded-xl"
+          >
+            ×
+          </Button>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Badge className={`${getActivityColor()} border flex items-center gap-2`}>
+            {getActivityIcon()}
+            {user.activity.toUpperCase()}
+          </Badge>
+          {user.isActive && (
+            <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse mr-2" />
+              ONLINE
+            </Badge>
+          )}
+        </div>
+
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center gap-2 text-white/80">
+            <ClockIcon className="w-4 h-4 text-purple-400" />
+            <span>Last seen: {user.lastSeen.toLocaleTimeString()}</span>
+          </div>
+
+          {user.serverConnected && (
+            <div className="flex items-center gap-2 text-white/80">
+              <ZapIcon className="w-4 h-4 text-blue-400" />
+              <span>Connected to: {user.serverConnected}</span>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 text-white/80">
+            <MapPinIcon className="w-4 h-4 text-green-400" />
+            <span>
+              Location: {user.lat.toFixed(2)}, {user.lng.toFixed(2)}
+            </span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
-// Main Live Map Component
+// Stats panel
+function LiveStatsPanel({ users }: { users: LiveUser[] }) {
+  const activeUsers = users.filter((user) => user.isActive).length
+  const streamingUsers = users.filter((user) => user.activity === "streaming").length
+  const totalUsers = users.length
+
+  return (
+    <Card className="absolute top-4 left-4 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl">
+      <CardContent className="p-6">
+        <div className="flex items-center gap-4 mb-4">
+          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center">
+            <GlobeIcon className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h3 className="text-white font-bold text-lg">Live Activity</h3>
+            <p className="text-white/60 text-sm">Real-time user locations</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-green-400">{activeUsers}</div>
+            <div className="text-xs text-white/60">Online</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-blue-400">{streamingUsers}</div>
+            <div className="text-xs text-white/60">Streaming</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-purple-400">{totalUsers}</div>
+            <div className="text-xs text-white/60">Total</div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// Main 3D Live Map component
 export function LiveMap3D() {
   const [users, setUsers] = useState<LiveUser[]>(LIVE_USERS)
-  const [selectedUser, setSelectedUser] = useState<string | null>(null)
-  const [autoRotate, setAutoRotate] = useState(true)
-  const [viewMode, setViewMode] = useState<"globe" | "list">("globe")
+  const [selectedUser, setSelectedUser] = useState<LiveUser | null>(null)
+  const [isAutoRotate, setIsAutoRotate] = useState(true)
 
   // Simulate real-time updates
   useEffect(() => {
     const interval = setInterval(() => {
       setUsers((prevUsers) =>
-        prevUsers.map((user) => {
-          // Randomly update user status and activity
-          const shouldUpdate = Math.random() < 0.3
-          if (!shouldUpdate) return user
-
-          const statuses: LiveUser["status"][] = ["streaming", "browsing", "idle", "offline"]
-          const activities = [
-            "Watching: The Mandalorian",
-            "Listening: Jazz Collection",
-            "Browsing Movies",
-            "Watching: Stranger Things",
-            "Listening: Rock Classics",
-            "Browsing TV Shows",
-            "Watching: Avatar",
-            "Idle",
-          ]
-
-          return {
-            ...user,
-            status: statuses[Math.floor(Math.random() * statuses.length)],
-            currentActivity: activities[Math.floor(Math.random() * activities.length)],
-            lastActive: user.status !== "offline" ? new Date() : user.lastActive,
-          }
-        }),
+        prevUsers.map((user) => ({
+          ...user,
+          lastSeen: user.isActive ? new Date() : user.lastSeen,
+          // Randomly change activity for active users
+          activity:
+            user.isActive && Math.random() > 0.8 ? (Math.random() > 0.5 ? "streaming" : "browsing") : user.activity,
+        })),
       )
     }, 5000)
 
     return () => clearInterval(interval)
   }, [])
 
-  const onlineUsers = users.filter((u) => u.status !== "offline")
-  const streamingUsers = users.filter((u) => u.status === "streaming")
-
-  const formatLastActive = (date: Date) => {
-    const now = new Date()
-    const diff = now.getTime() - date.getTime()
-    const minutes = Math.floor(diff / 60000)
-    const hours = Math.floor(diff / 3600000)
-
-    if (minutes < 1) return "Active now"
-    if (minutes < 60) return `${minutes}m ago`
-    if (hours < 24) return `${hours}h ago`
-    return date.toLocaleDateString()
-  }
-
-  const getDeviceIcon = (deviceType: string) => {
-    switch (deviceType) {
-      case "desktop":
-        return Monitor
-      case "mobile":
-        return "📱"
-      case "tablet":
-        return "📱"
-      case "tv":
-        return "📺"
-      default:
-        return Monitor
-    }
-  }
-
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between">
-        <div className="space-y-2">
-          <h2 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-            Live User Activity Map
-          </h2>
-          <p className="text-white/70 text-lg">Real-time visualization of global user activity and streaming</p>
+      <div className="text-center space-y-4">
+        <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-green-400 bg-clip-text text-transparent">
+          Live User Activity Map
+        </h2>
+        <p className="text-white/70 text-lg max-w-2xl mx-auto">
+          Real-time visualization of user locations and activity across our global Jellyfin network
+        </p>
+      </div>
+
+      {/* 3D Map Container */}
+      <div className="relative w-full h-[600px] md:h-[700px] lg:h-[800px] bg-gradient-to-br from-slate-900/50 via-purple-900/30 to-slate-900/50 rounded-3xl border border-white/10 backdrop-blur-xl overflow-hidden">
+        {/* Stats Panel */}
+        <LiveStatsPanel users={users} />
+
+        {/* User Info Panel */}
+        <UserInfoPanel user={selectedUser} onClose={() => setSelectedUser(null)} />
+
+        {/* Controls */}
+        <div className="absolute bottom-4 left-4 flex gap-2">
+          <Button
+            onClick={() => setIsAutoRotate(!isAutoRotate)}
+            variant="outline"
+            size="sm"
+            className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-xl backdrop-blur-sm"
+          >
+            {isAutoRotate ? <PauseIcon className="w-4 h-4 mr-2" /> : <PlayIcon className="w-4 h-4 mr-2" />}
+            {isAutoRotate ? "Pause" : "Rotate"}
+          </Button>
         </div>
-        <div className="flex gap-4">
-          <Button
-            onClick={() => setViewMode(viewMode === "globe" ? "list" : "globe")}
-            className="bg-white/10 border border-white/20 text-white hover:bg-white/20 rounded-xl backdrop-blur-sm"
-          >
-            {viewMode === "globe" ? <Users className="w-4 h-4 mr-2" /> : <Globe className="w-4 h-4 mr-2" />}
-            {viewMode === "globe" ? "List View" : "Globe View"}
-          </Button>
-          <Button
-            onClick={() => setAutoRotate(!autoRotate)}
-            className="bg-white/10 border border-white/20 text-white hover:bg-white/20 rounded-xl backdrop-blur-sm"
-          >
-            {autoRotate ? <Pause className="w-4 h-4 mr-2" /> : <Play className="w-4 h-4 mr-2" />}
-            {autoRotate ? "Pause" : "Rotate"}
-          </Button>
+
+        {/* 3D Canvas */}
+        <Canvas className="w-full h-full">
+          <PerspectiveCamera makeDefault position={[0, 0, 6]} />
+
+          {/* Lighting */}
+          <ambientLight intensity={0.3} />
+          <pointLight position={[10, 10, 10]} intensity={1} />
+          <pointLight position={[-10, -10, -10]} intensity={0.5} color="#8b5cf6" />
+
+          {/* Environment */}
+          <Environment preset="night" />
+
+          {/* Globe */}
+          <GlobeComponent users={users} onUserClick={setSelectedUser} />
+
+          {/* Controls */}
+          <OrbitControls
+            enablePan={false}
+            enableZoom={true}
+            enableRotate={true}
+            autoRotate={isAutoRotate}
+            autoRotateSpeed={0.5}
+            minDistance={4}
+            maxDistance={10}
+            minPolarAngle={Math.PI / 6}
+            maxPolarAngle={Math.PI - Math.PI / 6}
+          />
+        </Canvas>
+
+        {/* Floating particles overlay */}
+        <div className="absolute inset-0 pointer-events-none">
+          {Array.from({ length: 20 }, (_, i) => (
+            <div
+              key={i}
+              className="absolute w-1 h-1 bg-purple-400/30 rounded-full animate-pulse"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 3}s`,
+                animationDuration: `${2 + Math.random() * 2}s`,
+              }}
+            />
+          ))}
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-        <Card className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl">
-          <CardContent className="p-6 text-center">
-            <div className="w-12 h-12 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
-              <Users className="h-6 w-6 text-white" />
-            </div>
-            <div className="text-2xl font-bold text-white mb-1">{onlineUsers.length}</div>
-            <div className="text-sm text-white/60">Online Users</div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl">
-          <CardContent className="p-6 text-center">
-            <div className="w-12 h-12 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
-              <Play className="h-6 w-6 text-white" />
-            </div>
-            <div className="text-2xl font-bold text-white mb-1">{streamingUsers.length}</div>
-            <div className="text-sm text-white/60">Streaming Now</div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl">
-          <CardContent className="p-6 text-center">
-            <div className="w-12 h-12 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center">
-              <Globe className="h-6 w-6 text-white" />
-            </div>
-            <div className="text-2xl font-bold text-white mb-1">{new Set(users.map((u) => u.country)).size}</div>
-            <div className="text-sm text-white/60">Countries</div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl">
-          <CardContent className="p-6 text-center">
-            <div className="w-12 h-12 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-yellow-500 to-orange-600 flex items-center justify-center">
-              <Server className="h-6 w-6 text-white" />
-            </div>
-            <div className="text-2xl font-bold text-white mb-1">{users.length}</div>
-            <div className="text-sm text-white/60">Total Users</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {viewMode === "globe" ? (
-        /* 3D Globe View */
-        <Card className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden">
-          <CardContent className="p-0">
-            <div className="h-[600px] relative">
-              <Canvas camera={{ position: [0, 0, 5], fov: 60 }}>
-                <ambientLight intensity={0.3} />
-                <pointLight position={[10, 10, 10]} intensity={1} />
-                <pointLight position={[-10, -10, -10]} intensity={0.5} />
-
-                <Earth autoRotate={autoRotate} />
-
-                {users.map((user) => (
-                  <UserMarker
-                    key={user.id}
-                    user={user}
-                    onClick={() => setSelectedUser(selectedUser === user.id ? null : user.id)}
-                    isSelected={selectedUser === user.id}
-                  />
-                ))}
-
-                <OrbitControls
-                  enablePan={true}
-                  enableZoom={true}
-                  enableRotate={true}
-                  minDistance={3}
-                  maxDistance={10}
-                  autoRotate={autoRotate}
-                  autoRotateSpeed={0.5}
-                />
-              </Canvas>
-
-              {/* Legend */}
-              <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-xl border border-white/20 rounded-2xl p-4">
-                <h4 className="text-white font-semibold mb-3">User Status</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-green-400"></div>
-                    <span className="text-white/80">Streaming</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-blue-400"></div>
-                    <span className="text-white/80">Browsing</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
-                    <span className="text-white/80">Idle</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-red-400"></div>
-                    <span className="text-white/80">Offline</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        /* List View */
-        <Card className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl">
-          <CardHeader>
-            <CardTitle className="text-2xl text-white">Active Users</CardTitle>
-            <CardDescription className="text-white/60">
-              Real-time list of all users and their current activity
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {users.map((user) => (
+      {/* User List */}
+      <Card className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-3">
+            <UsersIcon className="w-6 h-6 text-purple-400" />
+            Active Users ({users.filter((u) => u.isActive).length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {users
+              .filter((user) => user.isActive)
+              .map((user) => (
                 <div
                   key={user.id}
-                  className="p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-all duration-300"
+                  className="flex items-center gap-3 p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-all duration-300 cursor-pointer"
+                  onClick={() => setSelectedUser(user)}
                 >
-                  <div className="flex items-center gap-3 mb-3">
-                    <Avatar className="w-10 h-10">
-                      <AvatarImage src={user.avatar || "/placeholder.svg"} />
-                      <AvatarFallback>{user.displayName[0]}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <h4 className="text-white font-semibold text-sm">{user.displayName}</h4>
-                      <p className="text-white/60 text-xs">@{user.username}</p>
+                  <img
+                    src={user.avatar || "/placeholder.svg"}
+                    alt={user.username}
+                    className="w-10 h-10 rounded-full border-2 border-purple-500/50"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white font-medium truncate">{user.username}</div>
+                    <div className="text-white/60 text-sm truncate">
+                      {user.city}, {user.country}
                     </div>
-                    <Badge
-                      className={`text-xs ${
-                        user.status === "streaming"
-                          ? "bg-green-500/20 text-green-400 border-green-500/30"
-                          : user.status === "browsing"
-                            ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
-                            : user.status === "idle"
-                              ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
-                              : "bg-red-500/20 text-red-400 border-red-500/30"
-                      }`}
-                    >
-                      {user.status}
-                    </Badge>
                   </div>
-
-                  <div className="space-y-2 text-xs text-white/70">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-3 h-3" />
-                      <span>
-                        {user.city}, {user.country}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Activity className="w-3 h-3" />
-                      <span className="truncate">{user.currentActivity}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-3 h-3" />
-                      <span>{formatLastActive(user.lastActive)}</span>
-                    </div>
-                    {user.connectedServer && (
-                      <div className="flex items-center gap-2">
-                        <Server className="w-3 h-3" />
-                        <span className="truncate">{user.connectedServer}</span>
-                      </div>
-                    )}
-                  </div>
+                  <div
+                    className={`w-3 h-3 rounded-full ${
+                      user.activity === "streaming"
+                        ? "bg-green-400"
+                        : user.activity === "browsing"
+                          ? "bg-blue-400"
+                          : "bg-yellow-400"
+                    } animate-pulse`}
+                  />
                 </div>
               ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

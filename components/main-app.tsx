@@ -36,7 +36,6 @@ import {
   XCircle,
   AlertCircle,
   MapPin,
-  UserCog,
 } from "lucide-react"
 import { ThreeDHeroSlider } from "@/components/3d-hero-slider"
 import { PremiumSection } from "@/components/paypal-button"
@@ -46,7 +45,6 @@ import { MessagingSystem } from "@/components/messaging/messaging-system"
 import { TicketSystem } from "@/components/tickets/ticket-system"
 import { LoginModal } from "@/components/auth/login-modal"
 import { LiveMap3D } from "@/components/3d-live-map"
-import { AdminDashboard } from "@/components/admin/admin-dashboard"
 import {
   DEMO_SERVERS,
   getServerStatusBadge,
@@ -560,9 +558,6 @@ export default function MainApp() {
       case "live-map":
         return <LiveMap3D />
 
-      case "admin":
-        return <AdminDashboard />
-
       case "premium":
         return <PremiumSection />
 
@@ -635,14 +630,6 @@ export default function MainApp() {
                   >
                     Live Map
                   </TabsTrigger>
-                  {user && user.role === "admin" && (
-                    <TabsTrigger
-                      value="admin"
-                      className="text-white data-[state=active]:bg-white/20 rounded-xl transition-all duration-300 px-6 py-3 font-semibold"
-                    >
-                      Admin
-                    </TabsTrigger>
-                  )}
                   <TabsTrigger
                     value="premium"
                     className="text-white data-[state=active]:bg-white/20 rounded-xl transition-all duration-300 px-6 py-3 font-semibold"
@@ -761,19 +748,6 @@ export default function MainApp() {
                   <MapPin className="w-5 h-5 mr-3" />
                   Live Map
                 </Button>
-                {user && user.role === "admin" && (
-                  <Button
-                    onClick={() => {
-                      setActiveTab("admin")
-                      setIsMobileMenuOpen(false)
-                    }}
-                    variant={activeTab === "admin" ? "default" : "ghost"}
-                    className="justify-start text-white rounded-2xl py-4 font-semibold"
-                  >
-                    <UserCog className="w-5 h-5 mr-3" />
-                    Admin
-                  </Button>
-                )}
                 <Button
                   onClick={() => {
                     setActiveTab("premium")
