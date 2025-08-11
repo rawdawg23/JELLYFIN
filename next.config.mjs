@@ -1,10 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
-    ignoreDuringBuilds: false, // Enable ESLint checks during build
+    ignoreDuringBuilds: false,
   },
   typescript: {
-    ignoreBuildErrors: false, // Enable TypeScript error checking during build
+    ignoreBuildErrors: false,
   },
   images: {
     remotePatterns: [
@@ -16,20 +16,40 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'xqi1eda.freshticks.xyz',
       },
+      {
+        protocol: 'https',
+        hostname: 'placeholder.svg',
+      },
     ],
     unoptimized: true,
   },
   webpack: (config, { isServer }) => {
-    // Handle potential module resolution issues
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,
       net: false,
       tls: false,
+      crypto: false,
+      stream: false,
+      url: false,
+      zlib: false,
+      http: false,
+      https: false,
+      assert: false,
+      os: false,
+      path: false,
     };
-    
+
+    // Handle Three.js modules properly
+    config.module.rules.push({
+      test: /\.(glsl|vs|fs|vert|frag)$/,
+      use: ['raw-loader'],
+    });
+
     return config;
   },
+  output: 'standalone',
+  poweredByHeader: false,
 };
 
 export default nextConfig;

@@ -4,7 +4,7 @@
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
-    "strict": false, // Temporarily disable strict mode to allow gradual migration
+    "strict": true,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
@@ -23,8 +23,11 @@
     },
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
-    "allowSyntheticDefaultImports": true, // Allow default imports from modules without default export
-    "noImplicitAny": false // Allow implicit any types temporarily
+    "allowSyntheticDefaultImports": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "types/**/*.ts"],
   "exclude": ["node_modules"]
