@@ -24,6 +24,7 @@
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "allowSyntheticDefaultImports": true,
+    "jsxImportSource": "react",
     "noImplicitAny": true,
     "noImplicitReturns": true,
     "noUnusedLocals": false,
