@@ -130,17 +130,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (typeof window !== "undefined" && typeof localStorage !== "undefined" && localStorage) {
+    if (typeof window !== "undefined" && typeof localStorage !== "undefined" && localStorage && localStorage.getItem) {
       try {
         const storedUser = localStorage.getItem("jellyfin-store-user")
-        if (storedUser) {
+        if (storedUser && typeof storedUser === "string") {
           const userData = JSON.parse(storedUser)
-          setUser(userData)
+          if (userData && typeof userData === "object") {
+            setUser(userData)
+          }
         }
       } catch (error) {
         console.error("Error parsing stored user data:", error)
-        if (typeof localStorage !== "undefined" && localStorage) {
-          localStorage.removeItem("jellyfin-store-user")
+        if (typeof localStorage !== "undefined" && localStorage && localStorage.removeItem) {
+          try {
+            localStorage.removeItem("jellyfin-store-user")
+          } catch (e) {
+            console.error("Error removing invalid user data:", e)
+          }
         }
       }
     }
@@ -163,8 +169,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setUser(userWithUpdatedLogin)
-      if (typeof window !== "undefined" && typeof localStorage !== "undefined" && localStorage) {
-        localStorage.setItem("jellyfin-store-user", JSON.stringify(userWithUpdatedLogin))
+      if (
+        typeof window !== "undefined" &&
+        typeof localStorage !== "undefined" &&
+        localStorage &&
+        localStorage.setItem
+      ) {
+        try {
+          localStorage.setItem("jellyfin-store-user", JSON.stringify(userWithUpdatedLogin))
+        } catch (error) {
+          console.error("Error storing user data:", error)
+        }
       }
       setIsLoading(false)
       return true
@@ -176,8 +191,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     setUser(null)
-    if (typeof window !== "undefined" && typeof localStorage !== "undefined" && localStorage) {
-      localStorage.removeItem("jellyfin-store-user")
+    if (
+      typeof window !== "undefined" &&
+      typeof localStorage !== "undefined" &&
+      localStorage &&
+      localStorage.removeItem
+    ) {
+      try {
+        localStorage.removeItem("jellyfin-store-user")
+      } catch (error) {
+        console.error("Error removing user data:", error)
+      }
     }
   }
 
@@ -222,8 +246,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     mockUsers.push({ ...newUser, password: userData.password })
 
     setUser(newUser)
-    if (typeof window !== "undefined" && typeof localStorage !== "undefined" && localStorage) {
-      localStorage.setItem("jellyfin-store-user", JSON.stringify(newUser))
+    if (typeof window !== "undefined" && typeof localStorage !== "undefined" && localStorage && localStorage.setItem) {
+      try {
+        localStorage.setItem("jellyfin-store-user", JSON.stringify(newUser))
+      } catch (error) {
+        console.error("Error storing new user data:", error)
+      }
     }
     setIsLoading(false)
     return true
@@ -239,8 +267,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const updatedUser = { ...user, ...updates }
     setUser(updatedUser)
-    if (typeof window !== "undefined" && typeof localStorage !== "undefined" && localStorage) {
-      localStorage.setItem("jellyfin-store-user", JSON.stringify(updatedUser))
+    if (typeof window !== "undefined" && typeof localStorage !== "undefined" && localStorage && localStorage.setItem) {
+      try {
+        localStorage.setItem("jellyfin-store-user", JSON.stringify(updatedUser))
+      } catch (error) {
+        console.error("Error updating user data:", error)
+      }
     }
 
     // Update in mock users array
